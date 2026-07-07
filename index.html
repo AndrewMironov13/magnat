@@ -433,12 +433,26 @@ function App(){
   useEffect(()=>{ const r=loadGame(); if(r){ setS({...START,...r.s, stats:{...START.stats,...(r.s.stats||{})}}); setStarted(r.started); } },[]);
   useEffect(()=>{ if(started) saveGame(s,started); },[s,started]);
 
+  // ==== ЭКОНОМИКА ====
+  const TAX_RATE=0.30;        // налог на весь доход
+  const UPKEEP_RATE=0.0004;   // содержание имущества за тик (% от стоимости)
+  const LOAN_RATE=0.22;       // «конский» процент по кредиту за тик
   const mgrBonus = 1 + (s.staff.includes("manager2")?0.15:0) + (s.staff.includes("coo")?0.2:0) + (s.staff.includes("cfo")?0.25:0) + (s.staff.includes("advisor")?0.4:0);
   const bizIncome = s.businesses.reduce((a,id)=>a+(BUSINESSES.find(x=>x.id===id)?.income||0),0);
   const salaryTotal = Object.entries(s.workers||{}).reduce((a,[id,q])=>a+(WORKERS.find(w=>w.id===id)?.salary||0)*q,0);
   const workerNet = Object.entries(s.workers||{}).reduce((a,[id,q])=>{const w=WORKERS.find(x=>x.id===id);return a+(w?(w.income-w.salary)*q:0);},0);
   const fleetIncome = (s.air||[]).reduce((a,id)=>a+(AIR.find(x=>x.id===id)?.income||0),0)+(s.sea||[]).reduce((a,id)=>a+(SEA.find(x=>x.id===id)?.income||0),0);
-  const income = Math.floor(bizIncome*mgrBonus + workerNet + fleetIncome);
+  const grossIncome = bizIncome*mgrBonus + workerNet + fleetIncome;
+  const taxCost = Math.floor(Math.max(0,grossIncome)*TAX_RATE);
+  const upkeepBase = s.property.reduce((a,id)=>a+(PROPERTY.find(b=>b.id===id)?.cost||0),0)
+    + s.luxury.reduce((a,id)=>a+(LUXURY.find(b=>b.id===id)?.cost||0),0)
+    + s.pets.reduce((a,id)=>a+(PETS.find(b=>b.id===id)?.cost||0),0)
+    + s.cars.reduce((a,c)=>a+(CARS.find(x=>x.id===c.carId)?.cost||0),0)
+    + (s.air||[]).reduce((a,id)=>a+(AIR.find(b=>b.id===id)?.cost||0),0)
+    + (s.sea||[]).reduce((a,id)=>a+(SEA.find(b=>b.id===id)?.cost||0),0);
+  const upkeepCost = Math.floor(upkeepBase*UPKEEP_RATE);
+  const income = Math.floor(grossIncome - taxCost - upkeepCost); // чистый доход/тик, может быть отрицательным
+  const creditLimit = Math.max(2000000, Math.floor(Math.max(0,netWorth(s))*0.6)); // кредитный лимит от капитала
 
   useEffect(()=>{
     if(!started) return;
@@ -450,7 +464,7 @@ function App(){
         let energy=A?Math.min(100,p.energy+2):Math.max(0,p.energy-0.6);
         let health=p.health; if(T)health=Math.min(100,health+1);
         if(hunger<15)health=Math.max(0,health-2); if(energy<10)health=Math.max(0,health-1.5);
-        return {...p,cash:p.cash+income,day:p.day+1,age:18+Math.floor((p.day+1)/90),hunger,energy,health,bankDeposit:Math.floor(p.bankDeposit*1.002),loan:Math.floor(p.loan*1.004)};
+        return {...p,cash:Math.max(0,p.cash+income),day:p.day+1,age:18+Math.floor((p.day+1)/90),hunger,energy,health,bankDeposit:Math.floor(p.bankDeposit*1.002),loan:Math.floor(p.loan*(1+LOAN_RATE))};
       });
     },3000);
     return ()=>clearInterval(timer.current);
@@ -486,15 +500,35 @@ function App(){
   const haveKid=()=>{if(!s.married)return notify("Сначала свадьба");if(s.cash<50000)return notify("Ребёнок 50к");setS(p=>({...p,cash:p.cash-50000,kids:p.kids+1,joy:Math.min(100,p.joy+15)}));notify("👶 Пополнение!");addLog("👶 Родился ребёнок");};
 
   const liveDay=()=>{if(s.energy<10)return notify("Нет сил на приключения 😴");const e=pick(EVENTS);setS(p=>({...p,cash:Math.max(0,p.cash+(e.money||0)),energy:Math.max(0,Math.min(100,p.energy-8+(e.energy||0))),hunger:Math.max(0,p.hunger-5),joy:Math.max(0,Math.min(100,p.joy+(e.joy||0))),health:Math.max(0,Math.min(100,p.health+(e.health||0)))}));notify(e.t+(e.money?(e.money>0?" +"+money(e.money):" "+money(e.money)):""));addLog("🎲 "+e.t+(e.money?` (${e.money>0?"+":""}${money(e.money)})`:""));};
-  const cheat=()=>{setS(p=>({...p,cash:p.cash+1000000,xp:p.xp+500}));notify("💰 +1 млн ₽ и +500 опыта");};
+  // ==== СКРЫТЫЕ ЧИТ-КОДЫ (только для владельца) ====
+  // Консоль браузера: mg(321)=+1млн, mg(3211)=+1млрд, mg(32111)=+1трлн, mg(1234)=+10000 опыта,
+  // mg(9999)=погасить долг, mg(7777)=восстановить здоровье/энергию/сытость/счастье, mg(5555)=+50 отношений
+  const applyCheat=(code)=>{code=Number(code);
+    if(code===321){setS(p=>({...p,cash:p.cash+1e6}));notify("· +1 млн ·");}
+    else if(code===3211){setS(p=>({...p,cash:p.cash+1e9}));notify("· +1 млрд ·");}
+    else if(code===32111){setS(p=>({...p,cash:p.cash+1e12}));notify("· +1 трлн ·");}
+    else if(code===321111){setS(p=>({...p,cash:p.cash+1e15}));notify("· +1 квдрлн ·");}
+    else if(code===1234){setS(p=>({...p,xp:p.xp+10000}));notify("· +10000 опыта ·");}
+    else if(code===9999){setS(p=>({...p,loan:0}));notify("· долг обнулён ·");}
+    else if(code===7777){setS(p=>({...p,health:100,energy:100,hunger:100,joy:100}));notify("· статы восстановлены ·");}
+    else if(code===5555){setS(p=>({...p,love:Math.min(100,p.love+50)}));notify("· +50 отношений ·");}
+    else return "неизвестный код";
+    return "ok";
+  };
+  const cheatRef=useRef(applyCheat); cheatRef.current=applyCheat;
+  useEffect(()=>{ window.mg=(c)=>cheatRef.current(c); return ()=>{ try{delete window.mg;}catch(e){} }; },[]);
+  // Секретный жест на телефоне: быстрые тапы по своей аватарке в шапке
+  const tapRef=useRef({n:0,t:0});
+  const secretTap=()=>{const now=Date.now();const st=tapRef.current;if(now-st.t>1400)st.n=0;st.t=now;st.n++;
+    if(st.n===5)applyCheat(321); else if(st.n===10)applyCheat(3211); else if(st.n===15){applyCheat(32111);st.n=0;}};
 
   const buyAsset=(x,kind)=>{const price=prices[x.id];const key=kind==="stock"?"stocks":"crypto";let n=mktQty==="max"?Math.floor(s.cash/price):mktQty;if(price>s.cash)return notify("Не хватает даже на 1");if(price*n>s.cash)n=Math.floor(s.cash/price);if(n<1)return notify("Не хватает");setS(p=>{const cur={...p[key]};cur[x.id]=(cur[x.id]||0)+n;return{...p,cash:p.cash-price*n,[key]:cur};});notify(`Куплено ${n}× ${x.name}`);};
   const sellAsset=(x,kind)=>{const key=kind==="stock"?"stocks":"crypto";const owned=s[key][x.id]||0;if(!owned)return notify("Нечего продавать");const price=prices[x.id];const n=mktQty==="max"?owned:Math.min(mktQty,owned);setS(p=>{const cur={...p[key]};cur[x.id]-=n;if(cur[x.id]<=0)delete cur[x.id];return{...p,cash:p.cash+price*n,[key]:cur};});notify(`Продано ${n}× +${money(price*n)}`);};
 
   const deposit=(amt)=>{if(s.cash<amt)return notify("Не хватает");setS(p=>({...p,cash:p.cash-amt,bankDeposit:p.bankDeposit+amt}));notify("На вклад: "+money(amt));};
   const withdraw=()=>{if(s.bankDeposit<=0)return notify("Вклад пуст");setS(p=>({...p,cash:p.cash+p.bankDeposit,bankDeposit:0}));notify("Снято");};
-  const takeLoan=(amt)=>{setS(p=>({...p,cash:p.cash+amt,loan:p.loan+amt}));notify("Кредит +"+money(amt));addLog(`🏦 Кредит ${money(amt)}`);};
-  const takeLoanInput=()=>{const amt=Math.floor(parseFloat(String(loanInput).replace(/[\s ]/g,"").replace(",",".")));if(!amt||amt<=0)return notify("Введи сумму кредита");if(amt>1e18)return notify("Слишком крупная сумма");takeLoan(amt);setLoanInput("");};
+  const takeLoan=(amt)=>{if(s.loan+amt>creditLimit)return notify("Кредитный лимит: "+money(creditLimit));setS(p=>({...p,cash:p.cash+amt,loan:p.loan+amt}));notify("Кредит +"+money(amt));addLog(`🏦 Кредит ${money(amt)} (лимит ${money(creditLimit)})`);};
+  const takeLoanInput=()=>{const amt=Math.floor(parseFloat(String(loanInput).replace(/[\s ]/g,"").replace(",",".")));if(!amt||amt<=0)return notify("Введи сумму кредита");if(s.loan+amt>creditLimit)return notify("Кредитный лимит: "+money(creditLimit));takeLoan(amt);setLoanInput("");};
   const payLoan=()=>{if(s.loan<=0)return notify("Долгов нет");const pay=Math.min(s.cash,s.loan);if(pay<=0)return notify("Нет денег");setS(p=>({...p,cash:p.cash-pay,loan:p.loan-pay}));notify("Погашено "+money(pay));};
 
   const casino=(bet,type)=>{if(s.cash<bet)return notify("Не хватает");let win=0,msg="";if(type==="coin"){win=Math.random()<0.5?bet*2:0;msg=win?"Орёл! 🪙":"Решка";}if(type==="dice"){const d=Math.ceil(Math.random()*6);win=d>=5?bet*3:0;msg=`Кости: ${d}. `+(win?"Куш!":"Мимо");}if(type==="slot"){const r=Math.random();win=r<0.05?bet*20:r<0.2?bet*3:0;msg=win>=bet*20?"🎰 ДЖЕКПОТ!":win?"🎰 Выигрыш!":"🎰 Пусто";}setS(p=>({...p,cash:p.cash-bet+win,joy:win?Math.min(100,p.joy+3):Math.max(0,p.joy-2),stats:{...p.stats,casinoWins:p.stats.casinoWins+(win?1:0)}}));notify(msg+(win?" +"+money(win):""));addLog(`🎰 ${msg}`);};
@@ -529,9 +563,9 @@ function App(){
 
   return (<div style={S.wrap}><div style={S.app}>
     <div style={S.header}>
-      <div style={S.avatarBox}>{HAIR[s.avatar]}</div>
+      <div style={S.avatarBox} onClick={secretTap}>{HAIR[s.avatar]}</div>
       <div style={{flex:1}}><div style={S.name}>{s.name}, {s.age}</div><div style={S.day}>День {s.day} · 🏆{s.achievements.length}</div></div>
-      <div style={{textAlign:"right"}}><div style={S.cash}>{money(s.cash)}</div>{income>0&&<div style={S.passive}>+{money(income)}/час 💤</div>}</div>
+      <div style={{textAlign:"right"}}><div style={S.cash}>{money(s.cash)}</div>{income!==0&&<div style={{...S.passive,color:income>0?"#5fbf8f":"#e0574e"}}>{income>0?"+":""}{money(income)}/час {income>0?"💤":"⚠️"}</div>}</div>
     </div>
     <div style={S.stats}><Stat label="Здоровье" val={s.health} color="#e0574e"/><Stat label="Энергия" val={s.energy} color="#3fa7d6"/><Stat label="Сытость" val={s.hunger} color="#e8a13a"/><Stat label="Счастье" val={s.joy} color="#c9a227"/></div>
     {flash&&<div style={S.flash}>{flash}</div>}
@@ -545,7 +579,14 @@ function App(){
           <ActBtn onClick={eat} label="Поесть" emoji="🍔" sub="−100 ₽"/>
           <ActBtn onClick={liveDay} label="Случай" emoji="🎲" sub="что выпадет"/>
         </div>
-        {income>0&&(<><SectionTitle>Пассивный доход</SectionTitle><div style={S.passiveCard}><div style={S.passiveBig}>+{money(income)}/час</div><div style={S.passiveLbl}>капает сам, даже когда игра закрыта</div></div></>)}
+        {(grossIncome>0||upkeepCost>0)&&(<><SectionTitle>Экономика · чистыми {income>=0?"+":""}{money(income)}/час</SectionTitle>
+          <div style={S.passiveCard}><div style={{...S.passiveBig,color:income>=0?"#5fbf8f":"#e0574e"}}>{income>=0?"+":""}{money(income)}/час</div><div style={S.passiveLbl}>капает сам, даже когда игра закрыта</div></div>
+          <div style={S.econGrid}>
+            <div style={S.econBox}><div style={S.econLbl}>Доход</div><div style={{...S.econVal,color:"#5fbf8f"}}>+{money(Math.floor(grossIncome))}</div></div>
+            <div style={S.econBox}><div style={S.econLbl}>Налог 30%</div><div style={{...S.econVal,color:"#e0574e"}}>−{money(taxCost)}</div></div>
+            <div style={S.econBox}><div style={S.econLbl}>Содержание</div><div style={{...S.econVal,color:"#e0574e"}}>−{money(upkeepCost)}</div></div>
+          </div>
+          {income<0&&<p style={S.tabHint}>⚠️ Расходы больше дохода — деньги тают. Наращивай бизнесы и штат или продавай меньше содержи.</p>}</>)}
         {portfolioVal>0&&<div style={{...S.passiveCard,marginTop:8}}><div style={S.passiveBig}>{money(portfolioVal)}</div><div style={S.passiveLbl}>портфель акций и крипты</div></div>}
         <SectionTitle>Дневник</SectionTitle>
         <div style={S.log}>{s.log.length===0?<div style={S.logEmpty}>Пусто. Начни действовать →</div>:s.log.map((l,i)=><div key={i} style={S.logRow}>{l}</div>)}</div>
@@ -614,7 +655,8 @@ function App(){
           <div style={S.passiveCard}><div style={S.passiveBig}>{money(s.bankDeposit)}</div><div style={S.passiveLbl}>на вкладе · +0.2%/тик</div></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}><button style={S.wideBtn} onClick={()=>deposit(10000)}>Вложить 10к</button><button style={S.wideBtn} onClick={()=>deposit(Math.floor(s.cash))}>Вложить всё</button><button style={{...S.wideBtn,gridColumn:"1/3",background:"#24382e",color:gold}} onClick={withdraw}>Снять всё</button></div>
           <SectionTitle>Кредит</SectionTitle>
-          <div style={S.passiveCard}><div style={{...S.passiveBig,color:s.loan>0?"#e0574e":"#5fbf8f"}}>{money(s.loan)}</div><div style={S.passiveLbl}>долг · +0.4%/тик</div></div>
+          <div style={S.passiveCard}><div style={{...S.passiveBig,color:s.loan>0?"#e0574e":"#5fbf8f"}}>{money(s.loan)}</div><div style={S.passiveLbl}>долг · <b style={{color:"#e0574e"}}>+22%/тик</b> · лимит {money(creditLimit)}</div></div>
+          <p style={S.tabHint}>⚠️ Процент конский: долг растёт очень быстро. Бери, только если сразу отобьёшь. Лимит зависит от твоего капитала.</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:10}}>{[1e6,1e7,1e8,1e9,1e10,1e12].map(a=><button key={a} style={{...S.wideBtn,fontSize:12,padding:"11px 4px"}} onClick={()=>takeLoan(a)}>+{money(a)}</button>)}</div>
           <div style={{display:"flex",gap:8,marginTop:8}}>
             <input style={{background:"#131f1a",border:"1px solid #24382e",borderRadius:12,padding:"12px 14px",fontSize:14,color:"#e8ede9",outline:"none",flex:1,minWidth:0}} placeholder="Своя сумма, ₽" inputMode="numeric" value={loanInput} onChange={e=>setLoanInput(e.target.value)} />
@@ -665,7 +707,6 @@ function App(){
         <SectionTitle>Сохранение</SectionTitle>
         <p style={S.tabHint}>Прогресс сохраняется сам в этом браузере. Чтобы перенести на другой телефон или отдать другу — экспортируй код и дай ему вставить.</p>
         <button style={{...S.bigBtn,background:"#15251e",color:gold}} onClick={exportSave}>📤 Экспорт сейва (код)</button>
-        <button style={{...S.bigBtn,marginTop:10,background:"#1a3327",color:"#5fbf8f"}} onClick={cheat}>💰 +1 млн ₽ и +500 опыта</button>
         <button style={{...S.bigBtn,marginTop:10,background:"#3a2226",color:"#e8b4bb"}} onClick={()=>{if(confirm("Начать заново? Прогресс сотрётся."))
 {setS(START);setStarted(false);}}}>Начать заново</button>
       </div>)}
@@ -771,6 +812,9 @@ const S={
   qtyRow:{display:"flex",flexWrap:"wrap",gap:6,margin:"4px 0 6px"},
   qtyChip:{background:"#131f1a",border:"1px solid #24382e",borderRadius:9,padding:"7px 11px",fontSize:12,color:"#8ba295",cursor:"pointer",fontWeight:700},
   qtyChipOn:{background:"#1a251d",border:"1px solid "+gold,color:gold},
+  econGrid:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7,marginTop:8},
+  econBox:{background:"#131f1a",border:"1px solid #1f2f27",borderRadius:11,padding:"9px 6px",textAlign:"center"},
+  econLbl:{fontSize:9.5,color:"#8ba295"},econVal:{fontSize:13,fontWeight:800,marginTop:3},
   garageGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:6},
   garageCard:{background:"#131f1a",border:"1px solid #24382e",borderRadius:14,padding:"12px 8px",cursor:"pointer",color:"#e8ede9",display:"flex",flexDirection:"column",alignItems:"center"},
   garageName:{fontSize:12,fontWeight:700,marginTop:6,textAlign:"center"},garageUp:{fontSize:11,color:gold,marginTop:3},
