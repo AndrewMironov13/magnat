@@ -123,6 +123,18 @@ const BUSINESSES = [
   {id:"timelord",name:"Корпорация времени",cost:400000000000000,income:35000000000000,emoji:"⏳",tier:8},
   {id:"multiverse",name:"Владыка мультивселенной",cost:5000000000000000,income:450000000000000,emoji:"🌠",tier:8},
 ];
+// Баланс: доход бизнесов снижен, чтобы окупались не мгновенно, а как настоящая инвестиция.
+const BIZ_INCOME_SCALE = 0.25;
+BUSINESSES.forEach(b=>{ b.income = Math.max(1, Math.round(b.income*BIZ_INCOME_SCALE)); });
+// Экономические циклы: множитель к доходу бизнесов, плавает сам во времени.
+const ECON_PHASES = [
+  {n:"Кризис 📉",m:0.5,c:"#e0574e"},
+  {n:"Спад",m:0.8,c:"#e8a13a"},
+  {n:"Стабильность",m:1,c:"#8ba295"},
+  {n:"Рост 📈",m:1.25,c:"#5fbf8f"},
+  {n:"Бум 🚀",m:1.6,c:"#5fbf8f"},
+];
+const LOAN_GRACE = 15; // тиков без выплаты до прихода коллекторов
 const TIER_NAMES = {1:"Старт",2:"Развитие",3:"Расширение",4:"Корпорация",5:"Магнат",6:"Легенда",7:"Космос",8:"Мультивселенная"};
 const STAFF = [
   {id:"assistant",name:"Личный ассистент",cost:5000,desc:"энергия не падает",emoji:"🧑‍💼"},
@@ -392,7 +404,7 @@ const START = {
   health:100,energy:100,hunger:100,joy:20,love:0,partner:false,married:false,kids:0,
   businesses:[],staff:[],property:[],luxury:[],pets:[],countries:[],education:[],cars:[],
   workers:{},air:[],sea:[],
-  stocks:{},crypto:{},bankDeposit:0,loan:0,achievements:[],
+  stocks:{},crypto:{},bankDeposit:0,loan:0,loanDue:0,econPhase:2,achievements:[],
   stats:{casinoWins:0,crimes:0},log:[],
 };
 
@@ -438,11 +450,12 @@ function App(){
   const UPKEEP_RATE=0.0004;   // содержание имущества за тик (% от стоимости)
   const LOAN_RATE=0.22;       // «конский» процент по кредиту за тик
   const mgrBonus = 1 + (s.staff.includes("manager2")?0.15:0) + (s.staff.includes("coo")?0.2:0) + (s.staff.includes("cfo")?0.25:0) + (s.staff.includes("advisor")?0.4:0);
+  const econ = ECON_PHASES[s.econPhase??2] || ECON_PHASES[2]; // текущая фаза экономики
   const bizIncome = s.businesses.reduce((a,id)=>a+(BUSINESSES.find(x=>x.id===id)?.income||0),0);
   const salaryTotal = Object.entries(s.workers||{}).reduce((a,[id,q])=>a+(WORKERS.find(w=>w.id===id)?.salary||0)*q,0);
   const workerNet = Object.entries(s.workers||{}).reduce((a,[id,q])=>{const w=WORKERS.find(x=>x.id===id);return a+(w?(w.income-w.salary)*q:0);},0);
   const fleetIncome = (s.air||[]).reduce((a,id)=>a+(AIR.find(x=>x.id===id)?.income||0),0)+(s.sea||[]).reduce((a,id)=>a+(SEA.find(x=>x.id===id)?.income||0),0);
-  const grossIncome = bizIncome*mgrBonus + workerNet + fleetIncome;
+  const grossIncome = bizIncome*mgrBonus*econ.m + workerNet + fleetIncome;
   const taxCost = Math.floor(Math.max(0,grossIncome)*TAX_RATE);
   const upkeepBase = s.property.reduce((a,id)=>a+(PROPERTY.find(b=>b.id===id)?.cost||0),0)
     + s.luxury.reduce((a,id)=>a+(LUXURY.find(b=>b.id===id)?.cost||0),0)
@@ -453,6 +466,8 @@ function App(){
   const upkeepCost = Math.floor(upkeepBase*UPKEEP_RATE);
   const income = Math.floor(grossIncome - taxCost - upkeepCost); // чистый доход/тик, может быть отрицательным
   const creditLimit = Math.max(2000000, Math.floor(Math.max(0,netWorth(s))*0.6)); // кредитный лимит от капитала
+  const garnish = s.loan>0 && (s.loanDue||0)>=LOAN_GRACE; // приставы забирают 70% дохода
+  const loanLeft = Math.max(0, LOAN_GRACE-(s.loanDue||0)); // тиков до прихода коллекторов
 
   useEffect(()=>{
     if(!started) return;
@@ -464,7 +479,15 @@ function App(){
         let energy=A?Math.min(100,p.energy+2):Math.max(0,p.energy-0.6);
         let health=p.health; if(T)health=Math.min(100,health+1);
         if(hunger<15)health=Math.max(0,health-2); if(energy<10)health=Math.max(0,health-1.5);
-        return {...p,cash:Math.max(0,p.cash+income),day:p.day+1,age:18+Math.floor((p.day+1)/90),hunger,energy,health,bankDeposit:Math.floor(p.bankDeposit*1.002),loan:Math.floor(p.loan*(1+LOAN_RATE))};
+        // экономический цикл плавает сам
+        let econPhase=p.econPhase??2;
+        if(Math.random()<0.06){econPhase+=Math.random()<0.5?-1:1;econPhase=Math.max(0,Math.min(4,econPhase));}
+        // кредит: растёт на 22%/тик; при просрочке коллекторы забирают 70% дохода в счёт долга
+        let loan=Math.floor((p.loan||0)*(1+LOAN_RATE));
+        let loanDue=loan>0?(p.loanDue||0)+1:0;
+        let cashGain=income;
+        if(loan>0&&loanDue>LOAN_GRACE&&income>0){const seize=Math.floor(income*0.7);cashGain=income-seize;loan=Math.max(0,loan-seize);if(loan<=0)loanDue=0;}
+        return {...p,cash:Math.max(0,p.cash+cashGain),day:p.day+1,age:18+Math.floor((p.day+1)/90),hunger,energy,health,bankDeposit:Math.floor(p.bankDeposit*1.002),loan,loanDue,econPhase};
       });
     },3000);
     return ()=>clearInterval(timer.current);
@@ -509,7 +532,7 @@ function App(){
     else if(code===32111){setS(p=>({...p,cash:p.cash+1e12}));notify("· +1 трлн ·");}
     else if(code===321111){setS(p=>({...p,cash:p.cash+1e15}));notify("· +1 квдрлн ·");}
     else if(code===1234){setS(p=>({...p,xp:p.xp+10000}));notify("· +10000 опыта ·");}
-    else if(code===9999){setS(p=>({...p,loan:0}));notify("· долг обнулён ·");}
+    else if(code===9999){setS(p=>({...p,loan:0,loanDue:0}));notify("· долг обнулён ·");}
     else if(code===7777){setS(p=>({...p,health:100,energy:100,hunger:100,joy:100}));notify("· статы восстановлены ·");}
     else if(code===5555){setS(p=>({...p,love:Math.min(100,p.love+50)}));notify("· +50 отношений ·");}
     else return "неизвестный код";
@@ -529,7 +552,7 @@ function App(){
   const withdraw=()=>{if(s.bankDeposit<=0)return notify("Вклад пуст");setS(p=>({...p,cash:p.cash+p.bankDeposit,bankDeposit:0}));notify("Снято");};
   const takeLoan=(amt)=>{if(s.loan+amt>creditLimit)return notify("Кредитный лимит: "+money(creditLimit));setS(p=>({...p,cash:p.cash+amt,loan:p.loan+amt}));notify("Кредит +"+money(amt));addLog(`🏦 Кредит ${money(amt)} (лимит ${money(creditLimit)})`);};
   const takeLoanInput=()=>{const amt=Math.floor(parseFloat(String(loanInput).replace(/[\s ]/g,"").replace(",",".")));if(!amt||amt<=0)return notify("Введи сумму кредита");if(s.loan+amt>creditLimit)return notify("Кредитный лимит: "+money(creditLimit));takeLoan(amt);setLoanInput("");};
-  const payLoan=()=>{if(s.loan<=0)return notify("Долгов нет");const pay=Math.min(s.cash,s.loan);if(pay<=0)return notify("Нет денег");setS(p=>({...p,cash:p.cash-pay,loan:p.loan-pay}));notify("Погашено "+money(pay));};
+  const payLoan=()=>{if(s.loan<=0)return notify("Долгов нет");const pay=Math.min(s.cash,s.loan);if(pay<=0)return notify("Нет денег");setS(p=>{const loan=p.loan-pay;return{...p,cash:p.cash-pay,loan,loanDue:loan<=0?0:p.loanDue};});notify("Погашено "+money(pay));};
 
   const casino=(bet,type)=>{if(s.cash<bet)return notify("Не хватает");let win=0,msg="";if(type==="coin"){win=Math.random()<0.5?bet*2:0;msg=win?"Орёл! 🪙":"Решка";}if(type==="dice"){const d=Math.ceil(Math.random()*6);win=d>=5?bet*3:0;msg=`Кости: ${d}. `+(win?"Куш!":"Мимо");}if(type==="slot"){const r=Math.random();win=r<0.05?bet*20:r<0.2?bet*3:0;msg=win>=bet*20?"🎰 ДЖЕКПОТ!":win?"🎰 Выигрыш!":"🎰 Пусто";}setS(p=>({...p,cash:p.cash-bet+win,joy:win?Math.min(100,p.joy+3):Math.max(0,p.joy-2),stats:{...p.stats,casinoWins:p.stats.casinoWins+(win?1:0)}}));notify(msg+(win?" +"+money(win):""));addLog(`🎰 ${msg}`);};
   const doCrime=(c)=>{const risk=c.risk-(s.staff.includes("lawyer")?0.15:0)-(s.staff.includes("security")?0.1:0);if(Math.random()>risk){const loot=Math.floor(rnd(c.min,c.max));setS(p=>({...p,cash:p.cash+loot,stats:{...p.stats,crimes:p.stats.crimes+1}}));notify("✅ +"+money(loot));addLog(`🥷 ${c.name}: +${money(loot)}`);}else{const fine=Math.floor(rnd(c.min,c.max)*0.7);setS(p=>({...p,cash:Math.max(0,p.cash-fine),health:Math.max(0,p.health-10)}));notify("🚓 −"+money(fine));addLog(`🚓 ${c.name}: провал`);}};
@@ -586,7 +609,9 @@ function App(){
             <div style={S.econBox}><div style={S.econLbl}>Налог 30%</div><div style={{...S.econVal,color:"#e0574e"}}>−{money(taxCost)}</div></div>
             <div style={S.econBox}><div style={S.econLbl}>Содержание</div><div style={{...S.econVal,color:"#e0574e"}}>−{money(upkeepCost)}</div></div>
           </div>
-          {income<0&&<p style={S.tabHint}>⚠️ Расходы больше дохода — деньги тают. Наращивай бизнесы и штат или продавай меньше содержи.</p>}</>)}
+          <div style={{...S.passiveLbl,marginTop:8,textAlign:"center"}}>Фаза экономики: <b style={{color:econ.c}}>{econ.n}</b> (×{econ.m} к бизнесам)</div>
+          {income<0&&<p style={S.tabHint}>⚠️ Расходы больше дохода — деньги тают. Наращивай бизнесы и штат или меньше содержи имущества.</p>}
+          {garnish&&<p style={{...S.tabHint,color:"#e0574e"}}>🚨 Коллекторы! За просрочку кредита забирают 70% дохода, пока не погасишь долг.</p>}</>)}
         {portfolioVal>0&&<div style={{...S.passiveCard,marginTop:8}}><div style={S.passiveBig}>{money(portfolioVal)}</div><div style={S.passiveLbl}>портфель акций и крипты</div></div>}
         <SectionTitle>Дневник</SectionTitle>
         <div style={S.log}>{s.log.length===0?<div style={S.logEmpty}>Пусто. Начни действовать →</div>:s.log.map((l,i)=><div key={i} style={S.logRow}>{l}</div>)}</div>
@@ -603,7 +628,11 @@ function App(){
 
       {tab==="biz"&&(<div>
         <SectionTitle>Империя · {income>0?"+"+money(income)+"/час":"начни строить"}</SectionTitle>
-        <p style={S.tabHint}>Каждый бизнес можно купить до {BIZ_LIMIT} раз.</p>
+        <div style={{...S.passiveCard,padding:"11px 14px",marginBottom:8,textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div><div style={{fontSize:12,color:"#8ba295"}}>Фаза экономики</div><div style={{fontSize:15,fontWeight:800,color:econ.c}}>{econ.n}</div></div>
+          <div style={{textAlign:"right"}}><div style={{fontSize:12,color:"#8ba295"}}>к доходу бизнесов</div><div style={{fontSize:15,fontWeight:800,color:econ.c}}>×{econ.m}</div></div>
+        </div>
+        <p style={S.tabHint}>Каждый бизнес можно купить до {BIZ_LIMIT} раз. Доход зависит от фазы экономики — она меняется сама.</p>
         {[1,2,3,4,5,6,7,8].map(tier=>(<div key={tier}><div style={S.tierLbl}>{TIER_NAMES[tier]}</div>
           {BUSINESSES.filter(b=>b.tier===tier).map(b=>{const cnt=bizCount(b.id);const max=cnt>=BIZ_LIMIT;const lc=b.needCar&&s.cars.length===0,lp=b.needProp&&s.property.length===0,lock=lc||lp;
             return(<div key={b.id} style={S.row}><div><div style={S.rowName}>{b.emoji} {b.name} {cnt>0&&<span style={S.owned}>{cnt}/{BIZ_LIMIT}</span>}</div><div style={S.rowSub}>{lc?"🔒 нужна машина":lp?"🔒 нужна недвижимость":`+${money(b.income)}/час`} · {money(b.cost)}</div></div>
@@ -657,6 +686,9 @@ function App(){
           <SectionTitle>Кредит</SectionTitle>
           <div style={S.passiveCard}><div style={{...S.passiveBig,color:s.loan>0?"#e0574e":"#5fbf8f"}}>{money(s.loan)}</div><div style={S.passiveLbl}>долг · <b style={{color:"#e0574e"}}>+22%/тик</b> · лимит {money(creditLimit)}</div></div>
           <p style={S.tabHint}>⚠️ Процент конский: долг растёт очень быстро. Бери, только если сразу отобьёшь. Лимит зависит от твоего капитала.</p>
+          {s.loan>0&&(garnish
+            ? <p style={{...S.tabHint,color:"#e0574e"}}>🚨 Коллекторы уже пришли: забирают 70% твоего дохода, пока долг не погашен!</p>
+            : <p style={{...S.tabHint,color:"#e8a13a"}}>⏳ Погаси долг за {loanLeft} тик(ов), иначе придут коллекторы и заберут 70% дохода.</p>)}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:10}}>{[1e6,1e7,1e8,1e9,1e10,1e12].map(a=><button key={a} style={{...S.wideBtn,fontSize:12,padding:"11px 4px"}} onClick={()=>takeLoan(a)}>+{money(a)}</button>)}</div>
           <div style={{display:"flex",gap:8,marginTop:8}}>
             <input style={{background:"#131f1a",border:"1px solid #24382e",borderRadius:12,padding:"12px 14px",fontSize:14,color:"#e8ede9",outline:"none",flex:1,minWidth:0}} placeholder="Своя сумма, ₽" inputMode="numeric" value={loanInput} onChange={e=>setLoanInput(e.target.value)} />
