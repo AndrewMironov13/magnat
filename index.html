@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>МАГНАТ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0c1512; overscroll-behavior: none; }
+  #root { min-height: 100vh; }
+  ::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ============ УТИЛИТЫ ============
+const money = (n) => {
+  n = Math.floor(n); const neg = n < 0; n = Math.abs(n); let out;
+  if (n >= 1e15) out = (n/1e15).toFixed(2)+" квдрлн";
+  else if (n >= 1e12) out = (n/1e12).toFixed(2)+" трлн";
+  else if (n >= 1e9) out = (n/1e9).toFixed(2)+" млрд";
+  else if (n >= 1e6) out = (n/1e6).toFixed(2)+" млн";
+  else if (n >= 1e3) out = (n/1e3).toFixed(1)+"к";
+  else out = n+" ₽";
+  return (neg?"−":"")+out;
+};
+const rnd = (a,b) => a + Math.random()*(b-a);
+const pick = (a) => a[Math.floor(Math.random()*a.length)];
+const BIZ_LIMIT = 3;
+
+// ============ ДАННЫЕ ============
+const JOBS = [
+  {id:"courier",name:"Курьер",pay:60,need:0,xp:1},
+  {id:"barista",name:"Бариста",pay:120,need:30,xp:2},
+  {id:"manager",name:"Менеджер",pay:280,need:120,xp:4},
+  {id:"dev",name:"Разработчик",pay:650,need:300,xp:7},
+  {id:"lead",name:"Тимлид",pay:1400,need:700,xp:11},
+  {id:"director",name:"Директор",pay:3200,need:1600,xp:18},
+  {id:"ceo",name:"CEO корпорации",pay:8000,need:4000,xp:30},
+  {id:"president",name:"Президент холдинга",pay:20000,need:10000,xp:50},
+  {id:"tycoon",name:"Мировой магнат",pay:60000,need:30000,xp:90},
+  {id:"oligarch",name:"Олигарх",pay:150000,need:70000,xp:150},
+  {id:"godfather",name:"Крёстный отец бизнеса",pay:400000,need:180000,xp:300},
+  {id:"legend",name:"Живая легенда",pay:1200000,need:500000,xp:600},
+];
+const EDUCATION = [
+  {id:"courses",name:"Онлайн-курсы",cost:2000,xp:50,emoji:"📱"},
+  {id:"college",name:"Колледж",cost:15000,xp:200,emoji:"📗"},
+  {id:"university",name:"Университет",cost:60000,xp:600,emoji:"🎓"},
+  {id:"mba",name:"MBA",cost:300000,xp:2000,emoji:"📊"},
+  {id:"phd",name:"Докторская",cost:1000000,xp:6000,emoji:"🔬"},
+  {id:"nobel",name:"Нобелевка (грант)",cost:20000000,xp:30000,emoji:"🏅"},
+  {id:"langs",name:"Языковая школа",cost:8000,xp:120,emoji:"🗣️"},
+  {id:"second",name:"Второе высшее",cost:150000,xp:1200,emoji:"📚"},
+  {id:"academy",name:"Академия магнатов",cost:4000000,xp:12000,emoji:"🏛️"},
+];
+const BUSINESSES = [
+  {id:"vending",name:"Вендинг-автомат",cost:800,income:40,emoji:"🥤",tier:1},
+  {id:"coffee",name:"Кофейня",cost:3500,income:160,emoji:"☕",tier:1},
+  {id:"kiosk",name:"Киоск с шаурмой",cost:6000,income:280,emoji:"🌯",tier:1},
+  {id:"carwash",name:"Автомойка",cost:9000,income:420,emoji:"🚿",tier:1,needCar:true},
+  {id:"laundry",name:"Прачечная",cost:14000,income:640,emoji:"🧺",tier:1},
+  {id:"shop",name:"Магазин у дома",cost:22000,income:950,emoji:"🏪",tier:2},
+  {id:"barber",name:"Барбершоп",cost:40000,income:1700,emoji:"💈",tier:2},
+  {id:"bakery",name:"Пекарня",cost:60000,income:2500,emoji:"🥐",tier:2},
+  {id:"restaurant",name:"Ресторан",cost:75000,income:3000,emoji:"🍽️",tier:2},
+  {id:"pharmacy",name:"Аптечная сеть",cost:110000,income:4500,emoji:"💊",tier:2},
+  {id:"gym",name:"Сеть фитнеса",cost:150000,income:6200,emoji:"🏋️",tier:3},
+  {id:"club",name:"Ночной клуб",cost:260000,income:11000,emoji:"🪩",tier:3},
+  {id:"cinema",name:"Кинотеатр",cost:400000,income:17000,emoji:"🎦",tier:3},
+  {id:"hotel",name:"Отель",cost:500000,income:22000,emoji:"🏨",tier:3,needProp:true},
+  {id:"mall",name:"Торговый центр",cost:750000,income:33000,emoji:"🏬",tier:3},
+  {id:"it",name:"IT-стартап",cost:900000,income:40000,emoji:"💻",tier:4},
+  {id:"dealer",name:"Автосалон",cost:1500000,income:68000,emoji:"🚘",tier:4,needCar:true},
+  {id:"factory",name:"Завод",cost:3000000,income:140000,emoji:"🏭",tier:4},
+  {id:"construction",name:"Строительный холдинг",cost:5000000,income:230000,emoji:"🏗️",tier:4},
+  {id:"telecom",name:"Телеком-оператор",cost:7000000,income:330000,emoji:"📡",tier:4},
+  {id:"airline",name:"Авиакомпания",cost:12000000,income:560000,emoji:"🛫",tier:5},
+  {id:"bank",name:"Частный банк",cost:20000000,income:950000,emoji:"🏦",tier:5},
+  {id:"media",name:"Медиахолдинг",cost:45000000,income:2200000,emoji:"📺",tier:5},
+  {id:"pharma2",name:"Фармкорпорация",cost:80000000,income:4000000,emoji:"⚗️",tier:5},
+  {id:"oil",name:"Нефтяная компания",cost:130000000,income:6800000,emoji:"🛢️",tier:5},
+  {id:"auto",name:"Автоконцерн",cost:300000000,income:16000000,emoji:"🚙",tier:6},
+  {id:"tech",name:"Техногигант",cost:600000000,income:33000000,emoji:"🖥️",tier:6},
+  {id:"space",name:"Космокомпания",cost:1500000000,income:85000000,emoji:"🚀",tier:6},
+  {id:"empire",name:"Мировая корпорация",cost:5000000000,income:300000000,emoji:"🌍",tier:6},
+  {id:"colony",name:"Колония на Марсе",cost:30000000000,income:2000000000,emoji:"🪐",tier:7},
+  {id:"galaxy",name:"Галактический холдинг",cost:200000000000,income:15000000000,emoji:"🌌",tier:7},
+  {id:"universe",name:"Владыка вселенной",cost:2000000000000,income:150000000000,emoji:"✨",tier:7},
+  // --- расширение контента ---
+  {id:"flowers",name:"Цветочный ларёк",cost:1800,income:85,emoji:"💐",tier:1},
+  {id:"icecream",name:"Мороженое",cost:4500,income:210,emoji:"🍦",tier:1},
+  {id:"pizza",name:"Пиццерия",cost:30000,income:1300,emoji:"🍕",tier:2},
+  {id:"autoservice",name:"Автосервис",cost:85000,income:3600,emoji:"🔧",tier:2,needCar:true},
+  {id:"hostel",name:"Хостел",cost:130000,income:5300,emoji:"🛏️",tier:2},
+  {id:"karting",name:"Картинг-центр",cost:200000,income:8500,emoji:"🏎️",tier:3},
+  {id:"bowling",name:"Боулинг-клуб",cost:330000,income:14000,emoji:"🎳",tier:3},
+  {id:"aquapark",name:"Аквапарк",cost:620000,income:27000,emoji:"🌊",tier:3},
+  {id:"farm",name:"Агрохолдинг",cost:1200000,income:54000,emoji:"🚜",tier:4},
+  {id:"logistics",name:"Логистика",cost:2200000,income:100000,emoji:"🚚",tier:4},
+  {id:"fuel",name:"Сеть заправок",cost:4000000,income:185000,emoji:"⛽",tier:4,needCar:true},
+  {id:"shipyard",name:"Судоверфь",cost:16000000,income:730000,emoji:"⚓",tier:5},
+  {id:"metallurgy",name:"Металлургия",cost:60000000,income:2900000,emoji:"🏗️",tier:5},
+  {id:"social",name:"Соцсеть",cost:250000000,income:13000000,emoji:"📱",tier:6},
+  {id:"stream",name:"Стриминг-сервис",cost:450000000,income:24000000,emoji:"🎬",tier:6},
+  {id:"ai",name:"AI-корпорация",cost:1000000000,income:58000000,emoji:"🤖",tier:6},
+  {id:"terraform",name:"Терраформинг планет",cost:80000000000,income:5500000000,emoji:"🌱",tier:7},
+  {id:"portal",name:"Портал в измерения",cost:600000000000,income:45000000000,emoji:"🌀",tier:7},
+];
+const TIER_NAMES = {1:"Старт",2:"Развитие",3:"Расширение",4:"Корпорация",5:"Магнат",6:"Легенда",7:"Космос"};
+const STAFF = [
+  {id:"assistant",name:"Личный ассистент",cost:5000,desc:"энергия не падает",emoji:"🧑‍💼"},
+  {id:"chef",name:"Личный повар",cost:12000,desc:"сытость держится",emoji:"👨‍🍳"},
+  {id:"trainer",name:"Личный тренер",cost:20000,desc:"здоровье растёт",emoji:"🧘"},
+  {id:"manager2",name:"Управляющий",cost:80000,desc:"+15% к доходу",emoji:"📊"},
+  {id:"lawyer",name:"Личный юрист",cost:200000,desc:"меньше риска в делах",emoji:"⚖️"},
+  {id:"cfo",name:"Финдиректор",cost:500000,desc:"+25% к доходу",emoji:"💼"},
+  {id:"security",name:"Личная охрана",cost:120000,desc:"меньше риска в делах",emoji:"🛡️"},
+  {id:"coo",name:"Операционный директор",cost:2000000,desc:"+20% к доходу",emoji:"🗂️"},
+  {id:"advisor",name:"Совет директоров",cost:5000000,desc:"+40% к доходу",emoji:"🏛️"},
+];
+// Корпоративный штат: наём пачками, зарплата за тик, чистый доход = income − salary
+const WORKERS = [
+  {id:"intern",name:"Стажёр",emoji:"🧑‍🎓",hire:2000,salary:15,income:55},
+  {id:"seller",name:"Продавец",emoji:"🧑‍💼",hire:8000,salary:55,income:200},
+  {id:"smm",name:"SMM-специалист",emoji:"📱",hire:25000,salary:150,income:540},
+  {id:"engineer",name:"Инженер",emoji:"👷",hire:80000,salary:420,income:1550},
+  {id:"analyst",name:"Аналитик",emoji:"📊",hire:200000,salary:950,income:3600},
+  {id:"lawyerw",name:"Корпоративный юрист",emoji:"⚖️",hire:600000,salary:2600,income:9800},
+  {id:"topmgr",name:"Топ-менеджер",emoji:"🕴️",hire:1500000,salary:6000,income:24000},
+  {id:"scientistw",name:"Учёный R&D",emoji:"🔬",hire:5000000,salary:19000,income:82000},
+  {id:"vp",name:"Вице-президент",emoji:"🏛️",hire:20000000,salary:75000,income:340000},
+  {id:"astronaut",name:"Космо-инженер",emoji:"🧑‍🚀",hire:120000000,salary:450000,income:2100000},
+];
+const CARS = [
+  {id:"scoot",brand:"Z-Motion",model:"Buzz",cost:900,joy:2,speed:40,body:"bike",base:"#8a8f94"},
+  {id:"hatch",brand:"Kubo",model:"City",cost:8000,joy:5,speed:60,body:"hatch",base:"#3a6ea5"},
+  {id:"sedan",brand:"Voss",model:"Regal",cost:28000,joy:9,speed:80,body:"sedan",base:"#2b2b2b"},
+  {id:"retro",brand:"Volga",model:"M21",cost:45000,joy:11,speed:70,body:"sedan",base:"#0f5132"},
+  {id:"suv",brand:"Terrano",model:"Peak",cost:55000,joy:12,speed:75,body:"suv",base:"#3d4a3d"},
+  {id:"pickup",brand:"Terrano",model:"Haul",cost:90000,joy:14,speed:85,body:"suv",base:"#78350f"},
+  {id:"coupe",brand:"Bellini",model:"Vero",cost:120000,joy:18,speed:110,body:"sport",base:"#b91c1c"},
+  {id:"muscle",brand:"Ford-X",model:"Stallion",cost:200000,joy:22,speed:130,body:"sport",base:"#1e3a8a"},
+  {id:"van",brand:"Sternberg",model:"VIP Lounge",cost:240000,joy:20,speed:90,body:"van",base:"#1f2937"},
+  {id:"sport",brand:"Pegaso",model:"Furia",cost:300000,joy:26,speed:140,body:"sport",base:"#e0a800"},
+  {id:"gt",brand:"Astoni",model:"Vantage",cost:550000,joy:32,speed:160,body:"super",base:"#0f766e"},
+  {id:"limo",brand:"Linkoln",model:"Stretch",cost:650000,joy:30,speed:100,body:"limo",base:"#0d0d0d"},
+  {id:"super",brand:"Lambardi",model:"Tuono",cost:850000,joy:38,speed:180,body:"super",base:"#16a34a"},
+  {id:"monster",brand:"BigFoot",model:"Crusher",cost:1300000,joy:36,speed:120,body:"monster",base:"#166534"},
+  {id:"roadster",brand:"Pegaso",model:"Spider",cost:2400000,joy:48,speed:230,body:"sport",base:"#be123c"},
+  {id:"hyper",brand:"Veyyron",model:"Divo X",cost:3000000,joy:55,speed:240,body:"super",base:"#6d28d9"},
+  {id:"koenig",brand:"Segra",model:"Jesko R",cost:6000000,joy:68,speed:280,body:"super",base:"#000000"},
+  {id:"grand",brand:"Astoni",model:"Royale",cost:9000000,joy:72,speed:300,body:"super",base:"#4c1d95"},
+  {id:"f1",brand:"Apex",model:"GP-1",cost:12000000,joy:80,speed:320,body:"f1",base:"#dc2626"},
+  {id:"phantom",brand:"Roll-R",model:"Phantom X",cost:25000000,joy:90,speed:260,body:"limo",base:"#f5f5f5"},
+  {id:"concept",brand:"Aurora",model:"Vision ∞",cost:50000000,joy:100,speed:400,body:"f1",base:"#c9a227"},
+];
+const UPGRADES = [
+  {id:"engine",name:"Мотор",emoji:"⚙️",costMul:0.15,speed:30,joy:4},
+  {id:"wheels",name:"Диски",emoji:"🛞",costMul:0.08,speed:10,joy:3},
+  {id:"nitro",name:"Нитро",emoji:"🔥",costMul:0.2,speed:50,joy:5},
+  {id:"body",name:"Обвес",emoji:"🏎️",costMul:0.12,speed:15,joy:6},
+  {id:"gold",name:"Золотой хром",emoji:"✨",costMul:0.5,speed:0,joy:15},
+];
+const PAINTS = ["#b91c1c","#e0a800","#16a34a","#2563eb","#6d28d9","#0d0d0d","#f5f5f5","#ec4899","#f97316","#0891b2","#c9a227","#14b8a6"];
+const PROPERTY = [
+  {id:"room",name:"Комната",cost:1500,joy:3,emoji:"🚪"},
+  {id:"studio",name:"Студия",cost:12000,joy:6,emoji:"🏠"},
+  {id:"flat",name:"Квартира",cost:55000,joy:10,emoji:"🏢"},
+  {id:"townhouse",name:"Таунхаус",cost:150000,joy:14,emoji:"🏘️"},
+  {id:"penthouse",name:"Пентхаус",cost:300000,joy:18,emoji:"🌆"},
+  {id:"house",name:"Загородный дом",cost:800000,joy:25,emoji:"🏡"},
+  {id:"villa",name:"Вилла у моря",cost:3500000,joy:40,emoji:"🏖️"},
+  {id:"castle",name:"Замок",cost:15000000,joy:60,emoji:"🏰"},
+  {id:"island",name:"Частный остров",cost:60000000,joy:90,emoji:"🏝️"},
+  {id:"skyscraper",name:"Небоскрёб",cost:500000000,joy:120,emoji:"🏙️"},
+  {id:"moonbase",name:"База на Луне",cost:10000000000,joy:200,emoji:"🌙"},
+  {id:"garagebox",name:"Гараж-бокс",cost:6000,joy:4,emoji:"🅿️"},
+  {id:"loft",name:"Лофт в центре",cost:280000,joy:16,emoji:"🏭"},
+  {id:"chalet",name:"Шале в горах",cost:1800000,joy:30,emoji:"🏔️"},
+  {id:"ranch",name:"Ранчо",cost:6000000,joy:45,emoji:"🐴"},
+  {id:"dubai",name:"Небоскрёб в Дубае",cost:120000000,joy:100,emoji:"🌇"},
+  {id:"orbital",name:"Орбитальная станция",cost:80000000000,joy:250,emoji:"🛰️"},
+];
+const LUXURY = [
+  {id:"suit",name:"Костюм на заказ",cost:4000,joy:4,emoji:"🤵"},
+  {id:"watch",name:"Швейцарские часы",cost:15000,joy:7,emoji:"⌚"},
+  {id:"wine",name:"Коллекция вина",cost:90000,joy:15,emoji:"🍷"},
+  {id:"art",name:"Картина с аукциона",cost:250000,joy:22,emoji:"🖼️"},
+  {id:"diamond",name:"Бриллиант",cost:500000,joy:30,emoji:"💎"},
+  {id:"yacht",name:"Яхта",cost:8000000,joy:50,emoji:"🛥️"},
+  {id:"jet",name:"Частный джет",cost:45000000,joy:70,emoji:"✈️"},
+  {id:"crown",name:"Корона",cost:200000000,joy:100,emoji:"👑"},
+  {id:"rocket",name:"Личная ракета",cost:5000000000,joy:150,emoji:"🚀"},
+  {id:"star",name:"Звезда (назвать)",cost:100000000000,joy:300,emoji:"⭐"},
+  {id:"phone",name:"Телефон Vertu",cost:8000,joy:6,emoji:"📱"},
+  {id:"sneakers",name:"Кроссовки на заказ",cost:35000,joy:9,emoji:"👟"},
+  {id:"violin",name:"Скрипка Страдивари",cost:1200000,joy:35,emoji:"🎻"},
+  {id:"golf",name:"Свой гольф-клуб",cost:12000000,joy:55,emoji:"⛳"},
+  {id:"meteorite",name:"Метеорит",cost:600000000,joy:120,emoji:"☄️"},
+  {id:"throne",name:"Золотой трон",cost:8000000000,joy:180,emoji:"🪑"},
+];
+const PETS = [
+  {id:"cat",name:"Котик",cost:3000,joy:8,emoji:"🐱"},
+  {id:"dog",name:"Пёс",cost:5000,joy:10,emoji:"🐶"},
+  {id:"parrot",name:"Попугай",cost:12000,joy:12,emoji:"🦜"},
+  {id:"snake",name:"Питон",cost:40000,joy:15,emoji:"🐍"},
+  {id:"horse",name:"Конь",cost:150000,joy:20,emoji:"🐴"},
+  {id:"lion",name:"Лев",cost:800000,joy:30,emoji:"🦁"},
+  {id:"tiger",name:"Тигр",cost:2000000,joy:40,emoji:"🐯"},
+  {id:"panda",name:"Панда",cost:10000000,joy:55,emoji:"🐼"},
+  {id:"dragon",name:"Дракон",cost:500000000,joy:100,emoji:"🐉"},
+  {id:"unicorn",name:"Единорог",cost:9000000000,joy:200,emoji:"🦄"},
+  {id:"hamster",name:"Хомяк",cost:1000,joy:5,emoji:"🐹"},
+  {id:"turtle",name:"Черепаха",cost:8000,joy:9,emoji:"🐢"},
+  {id:"owl",name:"Сова",cost:25000,joy:13,emoji:"🦉"},
+  {id:"flamingo",name:"Фламинго",cost:90000,joy:18,emoji:"🦩"},
+  {id:"elephant",name:"Слон",cost:1500000,joy:35,emoji:"🐘"},
+  {id:"kraken",name:"Кракен",cost:20000000000,joy:250,emoji:"🐙"},
+];
+const COUNTRIES = [
+  {id:"turkey",name:"Турция",cost:3000,joy:10,emoji:"🇹🇷"},
+  {id:"italy",name:"Италия",cost:12000,joy:16,emoji:"🇮🇹"},
+  {id:"japan",name:"Япония",cost:40000,joy:24,emoji:"🇯🇵"},
+  {id:"usa",name:"США",cost:90000,joy:30,emoji:"🇺🇸"},
+  {id:"dubai",name:"Дубай",cost:250000,joy:45,emoji:"🇦🇪"},
+  {id:"maldives",name:"Мальдивы",cost:700000,joy:65,emoji:"🏝️"},
+  {id:"antarctica",name:"Антарктида",cost:5000000,joy:80,emoji:"🧊"},
+  {id:"space",name:"Орбита Земли",cost:50000000,joy:100,emoji:"🛰️"},
+  {id:"moon",name:"Луна",cost:2000000000,joy:150,emoji:"🌕"},
+  {id:"mars",name:"Марс",cost:80000000000,joy:250,emoji:"🔴"},
+  {id:"switzerland",name:"Швейцария",cost:60000,joy:28,emoji:"🇨🇭"},
+  {id:"brazil",name:"Бразилия",cost:130000,joy:34,emoji:"🇧🇷"},
+  {id:"iceland",name:"Исландия",cost:400000,joy:50,emoji:"🇮🇸"},
+  {id:"seychelles",name:"Сейшелы",cost:1500000,joy:70,emoji:"🏖️"},
+  {id:"worldtour",name:"Кругосветка",cost:12000000,joy:95,emoji:"🌍"},
+];
+// Флот: авиация — счастье + доход от чартера/аренды
+const AIR = [
+  {id:"drone",name:"Аэротакси-дрон",emoji:"🛸",cost:150000,joy:20,income:1200},
+  {id:"heli",name:"Вертолёт",emoji:"🚁",cost:2000000,joy:35,income:9500},
+  {id:"prop",name:"Винтовой самолёт",emoji:"🛩️",cost:6000000,joy:45,income:27000},
+  {id:"bizjet",name:"Бизнес-джет",emoji:"✈️",cost:45000000,joy:70,income:190000},
+  {id:"airliner",name:"Пассажирский лайнер",emoji:"🛫",cost:300000000,joy:90,income:1250000},
+  {id:"spaceplane",name:"Космоплан",emoji:"🚀",cost:5000000000,joy:150,income:19000000},
+];
+// Флот: корабли/яхты — счастье + доход от чартера
+const SEA = [
+  {id:"boat",name:"Катер",emoji:"🚤",cost:400000,joy:22,income:2700},
+  {id:"sail",name:"Парусная яхта",emoji:"⛵",cost:3000000,joy:38,income:15500},
+  {id:"motoryacht",name:"Моторная яхта",emoji:"🛥️",cost:20000000,joy:60,income:115000},
+  {id:"megayacht",name:"Мегаяхта",emoji:"🛳️",cost:150000000,joy:85,income:780000},
+  {id:"cruise",name:"Круизный лайнер",emoji:"🚢",cost:1200000000,joy:120,income:5600000},
+  {id:"submarine",name:"Личная субмарина",emoji:"🤿",cost:8000000000,joy:180,income:33000000},
+];
+const STOCKS = [
+  {id:"tech",name:"TechCorp",emoji:"💻",price:150,vol:0.06},
+  {id:"oil",name:"OilGiant",emoji:"🛢️",price:80,vol:0.04},
+  {id:"food",name:"FoodChain",emoji:"🍔",price:45,vol:0.03},
+  {id:"auto",name:"AutoMax",emoji:"🚗",price:220,vol:0.05},
+  {id:"pharma",name:"PharmaLab",emoji:"💊",price:310,vol:0.07},
+  {id:"space",name:"SpaceY",emoji:"🚀",price:900,vol:0.09},
+  {id:"green",name:"GreenEnergy",emoji:"🌱",price:130,vol:0.06},
+  {id:"game",name:"GameStudio",emoji:"🎮",price:270,vol:0.08},
+  {id:"lux",name:"LuxBrand",emoji:"👜",price:640,vol:0.05},
+  {id:"aico",name:"AI Systems",emoji:"🤖",price:1500,vol:0.1},
+];
+const CRYPTO = [
+  {id:"btc",name:"BitCoin",emoji:"₿",price:4000000,vol:0.12},
+  {id:"eth",name:"EtherX",emoji:"Ξ",price:250000,vol:0.15},
+  {id:"doge",name:"DogeMoon",emoji:"🐕",price:15,vol:0.3},
+  {id:"meme",name:"MemeCoin",emoji:"🤡",price:1,vol:0.5},
+  {id:"sol",name:"SolarCoin",emoji:"☀️",price:8000,vol:0.18},
+  {id:"cat",name:"CatCoin",emoji:"🐱",price:3,vol:0.45},
+];
+const CRIMES = [
+  {id:"pickpocket",name:"Карманная кража",risk:0.4,min:500,max:3000,emoji:"🤏"},
+  {id:"smuggle",name:"Контрабанда",risk:0.45,min:5000,max:40000,emoji:"📦"},
+  {id:"hack",name:"Взлом биржи",risk:0.55,min:50000,max:500000,emoji:"💾"},
+  {id:"heist",name:"Ограбление банка",risk:0.65,min:500000,max:5000000,emoji:"🏦"},
+  {id:"cartel",name:"Свой картель",risk:0.7,min:5000000,max:50000000,emoji:"👑"},
+  {id:"casino_rob",name:"Ограбление казино",risk:0.72,min:20000000,max:200000000,emoji:"🎰"},
+  {id:"crypto_scam",name:"Крипто-афера",risk:0.75,min:80000000,max:900000000,emoji:"💸"},
+  {id:"gold_heist",name:"Кража золотого запаса",risk:0.8,min:500000000,max:6000000000,emoji:"🏅"},
+];
+const ACHIEVEMENTS = [
+  {id:"first_job",name:"Первая работа",check:(s)=>s.job,emoji:"💼"},
+  {id:"first_car",name:"Первая тачка",check:(s)=>s.cars.length>0,emoji:"🚗"},
+  {id:"first_biz",name:"Первый бизнес",check:(s)=>s.businesses.length>0,emoji:"🏪"},
+  {id:"millionaire",name:"Миллионер",check:(s)=>netWorth(s)>=1e6,emoji:"💰"},
+  {id:"multi",name:"Мультимиллионер",check:(s)=>netWorth(s)>=1e7,emoji:"💵"},
+  {id:"billionaire",name:"Миллиардер",check:(s)=>netWorth(s)>=1e9,emoji:"🤑"},
+  {id:"trillion",name:"Триллионер",check:(s)=>netWorth(s)>=1e12,emoji:"💠"},
+  {id:"married",name:"Свадьба",check:(s)=>s.married,emoji:"💍"},
+  {id:"parent",name:"Родитель",check:(s)=>s.kids>0,emoji:"👶"},
+  {id:"bigfamily",name:"Большая семья",check:(s)=>s.kids>=3,emoji:"👨‍👩‍👧‍👦"},
+  {id:"empire",name:"Мировая корпорация",check:(s)=>s.businesses.includes("empire"),emoji:"🌍"},
+  {id:"universe",name:"Владыка вселенной",check:(s)=>s.businesses.includes("universe"),emoji:"✨"},
+  {id:"collector",name:"Коллекционер",check:(s)=>s.luxury.length>=6,emoji:"🖼️"},
+  {id:"traveler",name:"Путешественник",check:(s)=>s.countries.length>=6,emoji:"✈️"},
+  {id:"petlover",name:"Друг зверей",check:(s)=>s.pets.length>=5,emoji:"🐾"},
+  {id:"dragon",name:"Властелин дракона",check:(s)=>s.pets.includes("dragon"),emoji:"🐉"},
+  {id:"scholar",name:"Нобелевский лауреат",check:(s)=>s.education.includes("nobel"),emoji:"🏅"},
+  {id:"cars10",name:"Автоколлекция",check:(s)=>s.cars.length>=8,emoji:"🏁"},
+  {id:"gambler",name:"Игрок",check:(s)=>s.stats&&s.stats.casinoWins>=10,emoji:"🎰"},
+  {id:"criminal",name:"Босс мафии",check:(s)=>s.businesses&&s.stats&&s.stats.crimes>=10,emoji:"🥷"},
+  {id:"employer",name:"Работодатель",check:(s)=>Object.values(s.workers||{}).reduce((a,b)=>a+b,0)>=10,emoji:"🧑‍💼"},
+  {id:"corp_people",name:"Штат 100+",check:(s)=>Object.values(s.workers||{}).reduce((a,b)=>a+b,0)>=100,emoji:"👥"},
+  {id:"army",name:"Целая армия",check:(s)=>Object.values(s.workers||{}).reduce((a,b)=>a+b,0)>=1000,emoji:"🏗️"},
+  {id:"pilot",name:"Свои крылья",check:(s)=>(s.air||[]).length>=1,emoji:"🛩️"},
+  {id:"airfleet",name:"Небесный флот",check:(s)=>(s.air||[]).length>=4,emoji:"✈️"},
+  {id:"captain",name:"Капитан",check:(s)=>(s.sea||[]).length>=1,emoji:"⚓"},
+  {id:"admiral",name:"Адмирал",check:(s)=>(s.sea||[]).length>=4,emoji:"🚢"},
+  {id:"garage",name:"Автопарк",check:(s)=>s.cars.length>=12,emoji:"🏁"},
+  {id:"romantic",name:"Казанова",check:(s)=>s.love>=100,emoji:"💘"},
+  {id:"longlife",name:"Долгожитель",check:(s)=>s.age>=60,emoji:"🎂"},
+  {id:"spender",name:"Транжира",check:(s)=>s.luxury.length>=10,emoji:"🛍️"},
+  {id:"quadrillion",name:"Квадриллионер",check:(s)=>netWorth(s)>=1e15,emoji:"🌟"},
+];
+const DATES = [
+  {id:"coffee",name:"Кофе",cost:30,love:5,emoji:"☕"},
+  {id:"cinema",name:"Кино",cost:80,love:8,emoji:"🎬"},
+  {id:"dinner",name:"Ужин в ресторане",cost:300,love:14,emoji:"🍝"},
+  {id:"trip",name:"Романтическая поездка",cost:2000,love:25,emoji:"✈️"},
+  {id:"gift",name:"Дорогой подарок",cost:20000,love:35,emoji:"🎁"},
+  {id:"walk",name:"Прогулка в парке",cost:0,love:3,emoji:"🌳"},
+  {id:"concert",name:"Концерт",cost:1200,love:18,emoji:"🎤"},
+  {id:"cruise2",name:"Круиз на двоих",cost:150000,love:50,emoji:"🛳️"},
+  {id:"ring",name:"Кольцо с бриллиантом",cost:1500000,love:70,emoji:"💎"},
+];
+const EVENTS = [
+  {t:"Нашёл 500 ₽ на улице!",money:500},{t:"Штраф за парковку",money:-800},
+  {t:"Друг вернул долг",money:1500},{t:"Инвестиция выстрелила 📈",money:8000},
+  {t:"Кризис на рынке 📉",money:-6000},{t:"Налоговый возврат",money:5000},
+  {t:"Выспался ☀️",energy:40},{t:"Нашёл клиента",money:2500},
+  {t:"Выиграл в лотерею 🎟️",money:3000},{t:"Премия на работе 💸",money:4000},
+  {t:"Разбил телефон",money:-2000},{t:"Кэшбэк с карты",money:1200},
+  {t:"Наследство от дяди 🎩",money:50000},{t:"Ограбили карманника",money:-3000},
+  {t:"Кэшбэк от бизнеса 💳",money:9000},{t:"Внезапный аудит 📋",money:-12000},
+  {t:"Дивиденды пришли 📊",money:15000},{t:"Штраф от налоговой",money:-9000},
+  {t:"Клиент дал чаевые 🤝",money:6000},{t:"Прорвало трубу дома 🔧",money:-5000},
+  {t:"Продал старьё на Авито",money:3500},{t:"Выиграл спор с другом",money:2000},
+  {t:"Отличный отдых 🌴",joy:15},{t:"Заболел, отлежался",health:-10},
+  {t:"Нашёл клад на даче 🪙",money:80000},{t:"Курс валюты скакнул 💱",money:11000},
+];
+const HAIR = ["🧑","👨","👩","🧔","👱","👨‍🦰","👩‍🦰","👨‍🦱","👩‍🦱","👴","👵","🧑‍🦲","🧑‍🎤","🕴️"];
+const HAIR_LBL = ["Обычная","Классика","Каре","Борода","Блонд","Рыжий","Рыжая","Кудри М","Кудри Ж","Седой","Седая","Лысый","Рокер","Босс"];
+
+const START = {
+  name:"",avatar:0,cash:5000,job:null,xp:0,age:18,day:1,
+  health:100,energy:100,hunger:100,joy:20,love:0,partner:false,married:false,kids:0,
+  businesses:[],staff:[],property:[],luxury:[],pets:[],countries:[],education:[],cars:[],
+  workers:{},air:[],sea:[],
+  stocks:{},crypto:{},bankDeposit:0,loan:0,achievements:[],
+  stats:{casinoWins:0,crimes:0},log:[],
+};
+
+function netWorth(s){
+  return s.cash + s.bankDeposit - s.loan +
+    s.businesses.reduce((a,id)=>a+(BUSINESSES.find(b=>b.id===id)?.cost||0),0) +
+    s.property.reduce((a,id)=>a+(PROPERTY.find(b=>b.id===id)?.cost||0),0) +
+    s.luxury.reduce((a,id)=>a+(LUXURY.find(b=>b.id===id)?.cost||0),0) +
+    s.pets.reduce((a,id)=>a+(PETS.find(b=>b.id===id)?.cost||0),0) +
+    (s.air||[]).reduce((a,id)=>a+(AIR.find(b=>b.id===id)?.cost||0),0) +
+    (s.sea||[]).reduce((a,id)=>a+(SEA.find(b=>b.id===id)?.cost||0),0) +
+    Object.entries(s.workers||{}).reduce((a,[id,q])=>a+(WORKERS.find(w=>w.id===id)?.hire||0)*q,0) +
+    s.cars.reduce((a,c)=>a+(CARS.find(x=>x.id===c.carId)?.cost||0),0);
+}
+
+const SAVE_KEY = "magnat_save_v3";
+function saveGame(s, started){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify({s,started})); }catch(e){} }
+function loadGame(){ try{ const r = localStorage.getItem(SAVE_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+
+// ============ ИГРА ============
+function App(){
+  const [s,setS] = useState(START);
+  const [started,setStarted] = useState(false);
+  const [tab,setTab] = useState("home");
+  const [nameInput,setNameInput] = useState("");
+  const [avatarPick,setAvatarPick] = useState(0);
+  const [flash,setFlash] = useState(null);
+  const [garageCar,setGarageCar] = useState(null);
+  const [moreTab,setMoreTab] = useState("stocks");
+  const [saveModal,setSaveModal] = useState(false);
+  const [saveCode,setSaveCode] = useState("");
+  const [prices,setPrices] = useState(()=>{const p={};[...STOCKS,...CRYPTO].forEach(x=>p[x.id]=x.price);return p;});
+  const timer = useRef(null);
+
+  useEffect(()=>{ const r=loadGame(); if(r){ setS({...START,...r.s, stats:{...START.stats,...(r.s.stats||{})}}); setStarted(r.started); } },[]);
+  useEffect(()=>{ if(started) saveGame(s,started); },[s,started]);
+
+  const mgrBonus = 1 + (s.staff.includes("manager2")?0.15:0) + (s.staff.includes("coo")?0.2:0) + (s.staff.includes("cfo")?0.25:0) + (s.staff.includes("advisor")?0.4:0);
+  const bizIncome = s.businesses.reduce((a,id)=>a+(BUSINESSES.find(x=>x.id===id)?.income||0),0);
+  const salaryTotal = Object.entries(s.workers||{}).reduce((a,[id,q])=>a+(WORKERS.find(w=>w.id===id)?.salary||0)*q,0);
+  const workerNet = Object.entries(s.workers||{}).reduce((a,[id,q])=>{const w=WORKERS.find(x=>x.id===id);return a+(w?(w.income-w.salary)*q:0);},0);
+  const fleetIncome = (s.air||[]).reduce((a,id)=>a+(AIR.find(x=>x.id===id)?.income||0),0)+(s.sea||[]).reduce((a,id)=>a+(SEA.find(x=>x.id===id)?.income||0),0);
+  const income = Math.floor(bizIncome*mgrBonus + workerNet + fleetIncome);
+
+  useEffect(()=>{
+    if(!started) return;
+    timer.current = setInterval(()=>{
+      setPrices(pr=>{const np={...pr};[...STOCKS,...CRYPTO].forEach(x=>{np[x.id]=Math.max(1,Math.round(pr[x.id]*(1+rnd(-x.vol,x.vol))));});return np;});
+      setS(p=>{
+        const A=p.staff.includes("assistant"),C=p.staff.includes("chef"),T=p.staff.includes("trainer");
+        let hunger=C?Math.min(100,p.hunger+2):Math.max(0,p.hunger-1.2);
+        let energy=A?Math.min(100,p.energy+2):Math.max(0,p.energy-0.6);
+        let health=p.health; if(T)health=Math.min(100,health+1);
+        if(hunger<15)health=Math.max(0,health-2); if(energy<10)health=Math.max(0,health-1.5);
+        return {...p,cash:p.cash+income,day:p.day+1,age:18+Math.floor((p.day+1)/90),hunger,energy,health,bankDeposit:Math.floor(p.bankDeposit*1.002),loan:Math.floor(p.loan*1.004)};
+      });
+    },3000);
+    return ()=>clearInterval(timer.current);
+  },[started,income]);
+
+  useEffect(()=>{
+    if(!started) return;
+    const na=ACHIEVEMENTS.filter(a=>!s.achievements.includes(a.id)&&a.check(s));
+    if(na.length){ setS(p=>({...p,achievements:[...p.achievements,...na.map(a=>a.id)]})); notify("🏆 "+na[0].name); }
+  },[s.cash,s.cars,s.businesses,s.married,s.kids,s.luxury,s.countries,s.pets,s.education,s.job,s.stats,s.workers,s.air,s.sea,s.love,s.age]);
+
+  const notify=(t)=>{setFlash(t);setTimeout(()=>setFlash(null),1600);};
+  const addLog=(t)=>setS(p=>({...p,log:[t,...p.log].slice(0,40)}));
+
+  const work=()=>{ if(!s.job)return notify("Устройся на работу"); if(s.energy<15)return notify("Нет сил 😴"); const j=JOBS.find(x=>x.id===s.job); setS(p=>({...p,cash:p.cash+j.pay,xp:p.xp+j.xp,energy:Math.max(0,p.energy-12),hunger:Math.max(0,p.hunger-8)})); notify("+"+j.pay+" ₽"); addLog(`💼 ${j.name} (+${j.pay} ₽)`); };
+  const sleep=()=>{setS(p=>({...p,energy:100}));notify("Выспался 😴");};
+  const eat=()=>{if(s.cash<100)return notify("Не хватает");setS(p=>({...p,cash:p.cash-100,hunger:100,health:Math.min(100,p.health+5)}));notify("Поел 🍔");};
+  const takeJob=(j)=>{if(s.xp<j.need)return notify(`Нужно ${j.need} опыта`);setS(p=>({...p,job:j.id}));notify("Работа: "+j.name);addLog(`📈 ${j.name}`);};
+  const study=(e)=>{if(s.cash<e.cost)return notify("Не хватает");if(s.education.includes(e.id))return notify("Пройдено");setS(p=>({...p,cash:p.cash-e.cost,xp:p.xp+e.xp,education:[...p.education,e.id]}));notify("+"+e.xp+" опыта 🎓");addLog(`🎓 ${e.name}`);};
+
+  const bizCount=(id)=>s.businesses.filter(x=>x===id).length;
+  const buyBiz=(b)=>{ if(bizCount(b.id)>=BIZ_LIMIT)return notify("Максимум "+BIZ_LIMIT+" шт"); if(s.cash<b.cost)return notify("Не хватает"); if(b.needCar&&s.cars.length===0)return notify("🔒 Нужна машина"); if(b.needProp&&s.property.length===0)return notify("🔒 Нужна недвижимость"); setS(p=>({...p,cash:p.cash-b.cost,businesses:[...p.businesses,b.id]}));notify("Открыт: "+b.name);addLog(`🏭 ${b.name}`); };
+  const hireStaff=(st)=>{if(s.cash<st.cost)return notify("Не хватает");setS(p=>({...p,cash:p.cash-st.cost,staff:[...p.staff,st.id]}));notify("Нанят: "+st.name);addLog(`🤝 ${st.name}`);};
+  const hireWorker=(w)=>{if(s.cash<w.hire)return notify("Не хватает на найм");setS(p=>{const cur={...(p.workers||{})};cur[w.id]=(cur[w.id]||0)+1;return{...p,cash:p.cash-w.hire,workers:cur};});notify("Нанят: "+w.name);addLog(`🧑‍💼 Нанят ${w.name}`);};
+  const fireWorker=(w)=>{setS(p=>{const cur={...(p.workers||{})};if(!cur[w.id])return p;cur[w.id]-=1;if(cur[w.id]<=0)delete cur[w.id];return{...p,workers:cur};});notify("Уволен: "+w.name);};
+  const buyItem=(item,kind)=>{if(s.cash<item.cost)return notify("Не хватает");setS(p=>{const n={...p,cash:p.cash-item.cost,joy:Math.min(100,p.joy+item.joy)};if(kind==="prop")n.property=[...p.property,item.id];if(kind==="lux")n.luxury=[...p.luxury,item.id];if(kind==="pet")n.pets=[...p.pets,item.id];if(kind==="country")n.countries=[...p.countries,item.id];if(kind==="air")n.air=[...(p.air||[]),item.id];if(kind==="sea")n.sea=[...(p.sea||[]),item.id];return n;});notify("Куплено: "+item.name);addLog(`🛒 ${item.name}`);};
+  const buyCar=(c)=>{if(s.cash<c.cost)return notify("Не хватает");setS(p=>({...p,cash:p.cash-c.cost,cars:[...p.cars,{carId:c.id,paint:c.base,upgrades:[]}],joy:Math.min(100,p.joy+c.joy)}));notify("В гараже: "+c.brand);addLog(`🏎️ ${c.brand} ${c.model}`);};
+  const paintCar=(i,color)=>setS(p=>{const cars=[...p.cars];cars[i]={...cars[i],paint:color};return{...p,cars};});
+  const upgradeCar=(i,up)=>{const car=s.cars[i];const base=CARS.find(c=>c.id===car.carId);if(car.upgrades.includes(up.id))return notify("Уже стоит");const cost=Math.floor(base.cost*up.costMul);if(s.cash<cost)return notify("Не хватает: "+money(cost));setS(p=>{const cars=[...p.cars];cars[i]={...cars[i],upgrades:[...cars[i].upgrades,up.id]};return{...p,cash:p.cash-cost,cars,joy:Math.min(100,p.joy+up.joy)};});notify(up.name+" "+up.emoji);};
+
+  const goDate=(d)=>{if(s.cash<d.cost)return notify("Не хватает");setS(p=>{const love=Math.min(100,p.love+d.love);return{...p,cash:p.cash-d.cost,love,partner:love>=30||p.partner,joy:Math.min(100,p.joy+4)};});notify(d.name+" "+d.emoji);addLog(`❤️ ${d.name}`);};
+  const marry=()=>{if(s.love<80)return notify("Нужно 80 отношений");if(s.cash<200000)return notify("Свадьба 200к");setS(p=>({...p,cash:p.cash-200000,married:true,joy:Math.min(100,p.joy+20)}));notify("🎉 Свадьба!");addLog("💍 Свадьба!");};
+  const haveKid=()=>{if(!s.married)return notify("Сначала свадьба");if(s.cash<50000)return notify("Ребёнок 50к");setS(p=>({...p,cash:p.cash-50000,kids:p.kids+1,joy:Math.min(100,p.joy+15)}));notify("👶 Пополнение!");addLog("👶 Родился ребёнок");};
+
+  const liveDay=()=>{const e=pick(EVENTS);setS(p=>({...p,cash:Math.max(0,p.cash+(e.money||0)),energy:Math.min(100,p.energy+(e.energy||0)),joy:Math.max(0,Math.min(100,p.joy+(e.joy||0))),health:Math.max(0,Math.min(100,p.health+(e.health||0)))}));notify(e.t);addLog("🎲 "+e.t);};
+  const cheat=()=>{setS(p=>({...p,cash:p.cash+1000000,xp:p.xp+500}));notify("💰 +1 млн ₽ и +500 опыта");};
+
+  const buyAsset=(x,kind)=>{const price=prices[x.id];if(s.cash<price)return notify("Не хватает");setS(p=>{const key=kind==="stock"?"stocks":"crypto";const cur={...p[key]};cur[x.id]=(cur[x.id]||0)+1;return{...p,cash:p.cash-price,[key]:cur};});notify("Куплено: "+x.name);};
+  const sellAsset=(x,kind)=>{const key=kind==="stock"?"stocks":"crypto";if(!s[key][x.id])return notify("Нечего продавать");const price=prices[x.id];setS(p=>{const cur={...p[key]};cur[x.id]-=1;if(cur[x.id]<=0)delete cur[x.id];return{...p,cash:p.cash+price,[key]:cur};});notify("Продано: +"+money(price));};
+
+  const deposit=(amt)=>{if(s.cash<amt)return notify("Не хватает");setS(p=>({...p,cash:p.cash-amt,bankDeposit:p.bankDeposit+amt}));notify("На вклад: "+money(amt));};
+  const withdraw=()=>{if(s.bankDeposit<=0)return notify("Вклад пуст");setS(p=>({...p,cash:p.cash+p.bankDeposit,bankDeposit:0}));notify("Снято");};
+  const takeLoan=(amt)=>{setS(p=>({...p,cash:p.cash+amt,loan:p.loan+amt}));notify("Кредит +"+money(amt));addLog(`🏦 Кредит ${money(amt)}`);};
+  const payLoan=()=>{if(s.loan<=0)return notify("Долгов нет");const pay=Math.min(s.cash,s.loan);if(pay<=0)return notify("Нет денег");setS(p=>({...p,cash:p.cash-pay,loan:p.loan-pay}));notify("Погашено "+money(pay));};
+
+  const casino=(bet,type)=>{if(s.cash<bet)return notify("Не хватает");let win=0,msg="";if(type==="coin"){win=Math.random()<0.5?bet*2:0;msg=win?"Орёл! 🪙":"Решка";}if(type==="dice"){const d=Math.ceil(Math.random()*6);win=d>=5?bet*3:0;msg=`Кости: ${d}. `+(win?"Куш!":"Мимо");}if(type==="slot"){const r=Math.random();win=r<0.05?bet*20:r<0.2?bet*3:0;msg=win>=bet*20?"🎰 ДЖЕКПОТ!":win?"🎰 Выигрыш!":"🎰 Пусто";}setS(p=>({...p,cash:p.cash-bet+win,joy:win?Math.min(100,p.joy+3):Math.max(0,p.joy-2),stats:{...p.stats,casinoWins:p.stats.casinoWins+(win?1:0)}}));notify(msg+(win?" +"+money(win):""));addLog(`🎰 ${msg}`);};
+  const doCrime=(c)=>{const risk=c.risk-(s.staff.includes("lawyer")?0.15:0)-(s.staff.includes("security")?0.1:0);if(Math.random()>risk){const loot=Math.floor(rnd(c.min,c.max));setS(p=>({...p,cash:p.cash+loot,stats:{...p.stats,crimes:p.stats.crimes+1}}));notify("✅ +"+money(loot));addLog(`🥷 ${c.name}: +${money(loot)}`);}else{const fine=Math.floor(rnd(c.min,c.max)*0.7);setS(p=>({...p,cash:Math.max(0,p.cash-fine),health:Math.max(0,p.health-10)}));notify("🚓 −"+money(fine));addLog(`🚓 ${c.name}: провал`);}};
+
+  const exportSave=()=>{ const code=btoa(unescape(encodeURIComponent(JSON.stringify({s,started:true})))); setSaveCode(code); setSaveModal(true); };
+  const importSave=()=>{ try{ const data=JSON.parse(decodeURIComponent(escape(atob(saveCode.trim())))); setS({...START,...data.s,stats:{...START.stats,...(data.s.stats||{})}}); setStarted(true); setSaveModal(false); notify("Сейв загружен ✅"); }catch(e){ notify("Неверный код сейва"); } };
+
+  // ==== СТАРТ ====
+  if(!started){
+    return (<div style={S.wrap}><div style={S.startCard}>
+      <div style={S.logo}>♛</div><h1 style={S.title}>МАГНАТ</h1><p style={S.sub}>Построй империю. Стань легендой.</p>
+      <input style={S.input} placeholder="Имя героя" value={nameInput} onChange={e=>setNameInput(e.target.value)} />
+      <div style={S.avatarPickRow}>{HAIR.map((h,i)=><button key={i} onClick={()=>setAvatarPick(i)} style={{...S.avatarChip,...(avatarPick===i?S.avatarChipOn:{})}}>{h}</button>)}</div>
+      <div style={S.avatarLbl}>{HAIR_LBL[avatarPick]}</div>
+      <button style={S.bigBtn} onClick={()=>{setS({...START,name:nameInput||"Игрок",avatar:avatarPick});setStarted(true);}}>Начать →</button>
+      <button style={{...S.bigBtn,marginTop:10,background:"#15251e",color:gold}} onClick={()=>{setSaveCode("");setSaveModal(true);}}>Загрузить сейв (код)</button>
+      <p style={S.hint}>Работа, 50 бизнесов, наёмный штат с зарплатами, авиация и морской флот, акции, крипта, банк, казино, тёмные дела, семья, питомцы, путешествия, тюнинг машин. Прогресс сохраняется автоматически.</p>
+      {saveModal && <SaveBox code={saveCode} setCode={setSaveCode} onImport={importSave} onClose={()=>setSaveModal(false)} mode="import" />}
+    </div></div>);
+  }
+  if(s.health<=0){
+    return (<div style={S.wrap}><div style={S.startCard}>
+      <div style={{...S.logo,background:"#7a1f2b"}}>†</div><h1 style={S.title}>КОНЕЦ</h1><p style={S.sub}>{s.name}, {s.age} лет</p>
+      <div style={S.statBig}>{money(netWorth(s))}</div><p style={S.hint}>Капитал · достижений {s.achievements.length}/{ACHIEVEMENTS.length}</p>
+      <button style={S.bigBtn} onClick={()=>{setS(START);setStarted(false);}}>Заново</button>
+    </div></div>);
+  }
+
+  const nw=netWorth(s);
+  const portfolioVal=Object.entries(s.stocks).reduce((a,[id,q])=>a+prices[id]*q,0)+Object.entries(s.crypto).reduce((a,[id,q])=>a+prices[id]*q,0);
+
+  return (<div style={S.wrap}><div style={S.app}>
+    <div style={S.header}>
+      <div style={S.avatarBox}>{HAIR[s.avatar]}</div>
+      <div style={{flex:1}}><div style={S.name}>{s.name}, {s.age}</div><div style={S.day}>День {s.day} · 🏆{s.achievements.length}</div></div>
+      <div style={{textAlign:"right"}}><div style={S.cash}>{money(s.cash)}</div>{income>0&&<div style={S.passive}>+{money(income)}/час 💤</div>}</div>
+    </div>
+    <div style={S.stats}><Stat label="Здоровье" val={s.health} color="#e0574e"/><Stat label="Энергия" val={s.energy} color="#3fa7d6"/><Stat label="Сытость" val={s.hunger} color="#e8a13a"/><Stat label="Счастье" val={s.joy} color="#c9a227"/></div>
+    {flash&&<div style={S.flash}>{flash}</div>}
+
+    <div style={S.content}>
+      {tab==="home"&&(<div>
+        <SectionTitle>Действия</SectionTitle>
+        <div style={S.actionGrid}>
+          <ActBtn onClick={work} label="Работать" emoji="💼" sub={s.job?"+"+JOBS.find(j=>j.id===s.job).pay+" ₽":"нет работы"}/>
+          <ActBtn onClick={sleep} label="Спать" emoji="😴" sub="энергия 100"/>
+          <ActBtn onClick={eat} label="Поесть" emoji="🍔" sub="−100 ₽"/>
+          <ActBtn onClick={liveDay} label="Случай" emoji="🎲" sub="что выпадет"/>
+        </div>
+        {income>0&&(<><SectionTitle>Пассивный доход</SectionTitle><div style={S.passiveCard}><div style={S.passiveBig}>+{money(income)}/час</div><div style={S.passiveLbl}>капает сам, даже когда игра закрыта</div></div></>)}
+        {portfolioVal>0&&<div style={{...S.passiveCard,marginTop:8}}><div style={S.passiveBig}>{money(portfolioVal)}</div><div style={S.passiveLbl}>портфель акций и крипты</div></div>}
+        <SectionTitle>Дневник</SectionTitle>
+        <div style={S.log}>{s.log.length===0?<div style={S.logEmpty}>Пусто. Начни действовать →</div>:s.log.map((l,i)=><div key={i} style={S.logRow}>{l}</div>)}</div>
+      </div>)}
+
+      {tab==="career"&&(<div>
+        <SectionTitle>Карьера · опыт {s.xp}</SectionTitle>
+        {JOBS.map(j=>{const a=s.job===j.id,l=s.xp<j.need;return(<div key={j.id} style={{...S.row,...(a?S.rowActive:{})}}><div><div style={S.rowName}>{j.name} {a&&"✓"}</div><div style={S.rowSub}>{j.pay} ₽/смена · опыт {j.need}</div></div><button style={{...S.buyBtn,...(l?S.btnLock:{}),...(a?S.btnOwn:{})}} onClick={()=>!l&&!a&&takeJob(j)} disabled={l||a}>{a?"тут":l?"🔒":"занять"}</button></div>);})}
+        <SectionTitle>Образование</SectionTitle>
+        {EDUCATION.map(e=>{const d=s.education.includes(e.id);return(<div key={e.id} style={S.row}><div><div style={S.rowName}>{e.emoji} {e.name} {d&&"✓"}</div><div style={S.rowSub}>+{e.xp} опыта · {money(e.cost)}</div></div><button style={{...S.buyBtn,...(s.cash<e.cost?S.btnLock:{}),...(d?S.btnOwn:{})}} onClick={()=>!d&&study(e)} disabled={d}>{d?"есть":"учиться"}</button></div>);})}
+        <SectionTitle>Персонал</SectionTitle>
+        {STAFF.map(st=>{const o=s.staff.includes(st.id);return(<div key={st.id} style={S.row}><div><div style={S.rowName}>{st.emoji} {st.name} {o&&"✓"}</div><div style={S.rowSub}>{st.desc} · {money(st.cost)}</div></div><button style={{...S.buyBtn,...(s.cash<st.cost?S.btnLock:{}),...(o?S.btnOwn:{})}} onClick={()=>!o&&hireStaff(st)} disabled={o}>{o?"есть":"нанять"}</button></div>);})}
+      </div>)}
+
+      {tab==="biz"&&(<div>
+        <SectionTitle>Империя · {income>0?"+"+money(income)+"/час":"начни строить"}</SectionTitle>
+        <p style={S.tabHint}>Каждый бизнес можно купить до {BIZ_LIMIT} раз.</p>
+        {[1,2,3,4,5,6,7].map(tier=>(<div key={tier}><div style={S.tierLbl}>{TIER_NAMES[tier]}</div>
+          {BUSINESSES.filter(b=>b.tier===tier).map(b=>{const cnt=bizCount(b.id);const max=cnt>=BIZ_LIMIT;const lc=b.needCar&&s.cars.length===0,lp=b.needProp&&s.property.length===0,lock=lc||lp;
+            return(<div key={b.id} style={S.row}><div><div style={S.rowName}>{b.emoji} {b.name} {cnt>0&&<span style={S.owned}>{cnt}/{BIZ_LIMIT}</span>}</div><div style={S.rowSub}>{lc?"🔒 нужна машина":lp?"🔒 нужна недвижимость":`+${money(b.income)}/час`} · {money(b.cost)}</div></div>
+              <button style={{...S.buyBtn,...((s.cash<b.cost||lock||max)?S.btnLock:{})}} onClick={()=>buyBiz(b)}>{max?"макс":lock?"🔒":"открыть"}</button></div>);})}</div>))}
+        <SectionTitle>Сотрудники · штат {Object.values(s.workers||{}).reduce((a,b)=>a+b,0)}</SectionTitle>
+        <p style={S.tabHint}>Нанимай людей — каждый приносит доход, но ест зарплату. Зарплатный фонд: −{money(salaryTotal)}/час.</p>
+        {WORKERS.map(w=>{const cnt=(s.workers||{})[w.id]||0;return(<div key={w.id} style={S.row}><div><div style={S.rowName}>{w.emoji} {w.name} {cnt>0&&<span style={S.owned}>×{cnt}</span>}</div><div style={S.rowSub}>+{money(w.income-w.salary)}/час чистыми · найм {money(w.hire)}</div></div><div style={{display:"flex",gap:6}}><button style={{...S.miniBtn,background:"#24382e",color:gold}} onClick={()=>fireWorker(w)}>−</button><button style={{...S.miniBtn,...(s.cash<w.hire?S.btnLock:{})}} onClick={()=>hireWorker(w)}>+</button></div></div>);})}
+      </div>)}
+
+      {tab==="cars"&&(<div>
+        <SectionTitle>Гараж · {s.cars.length} авто</SectionTitle>
+        {s.cars.length===0&&<p style={S.tabHint}>Гараж пуст. Купи машину ниже ↓</p>}
+        <div style={S.garageGrid}>{s.cars.map((car,i)=>{const b=CARS.find(c=>c.id===car.carId);return(<button key={i} style={S.garageCard} onClick={()=>setGarageCar(i)}><CarSVG body={b.body} color={car.paint}/><div style={S.garageName}>{b.brand} {b.model}</div><div style={S.garageUp}>{car.upgrades.length>0?car.upgrades.map(u=>UPGRADES.find(x=>x.id===u).emoji).join(""):"тюнинг →"}</div></button>);})}</div>
+        <SectionTitle>Автосалон</SectionTitle>
+        {CARS.map(c=>(<div key={c.id} style={S.row}><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:54}}><CarSVG body={c.body} color={c.base} small/></div><div><div style={S.rowName}>{c.brand} {c.model}</div><div style={S.rowSub}>⚡{c.speed} · {money(c.cost)}</div></div></div><button style={{...S.buyBtn,...(s.cash<c.cost?S.btnLock:{})}} onClick={()=>buyCar(c)}>купить</button></div>))}
+      </div>)}
+
+      {tab==="shop"&&(<div>
+        <SectionTitle>🏡 Недвижимость</SectionTitle>{PROPERTY.map(b=><ShopRow key={b.id} item={b} owned={s.property.includes(b.id)} cash={s.cash} onBuy={()=>buyItem(b,"prop")} extra={`+${b.joy} счастья`}/>)}
+        <SectionTitle>💎 Роскошь</SectionTitle>{LUXURY.map(b=><ShopRow key={b.id} item={b} owned={s.luxury.includes(b.id)} cash={s.cash} onBuy={()=>buyItem(b,"lux")} extra={`+${b.joy} счастья`}/>)}
+        <SectionTitle>🐾 Питомцы</SectionTitle>{PETS.map(b=><ShopRow key={b.id} item={b} owned={s.pets.includes(b.id)} cash={s.cash} onBuy={()=>buyItem(b,"pet")} extra={`+${b.joy} счастья`}/>)}
+        <SectionTitle>🛩️ Авиация</SectionTitle>
+        <p style={S.tabHint}>Личный воздушный флот: счастье + доход от аренды/чартера.</p>
+        {AIR.map(b=><ShopRow key={b.id} item={b} owned={(s.air||[]).includes(b.id)} cash={s.cash} onBuy={()=>buyItem(b,"air")} extra={`+${money(b.income)}/час · +${b.joy}☺`} ownTxt="в ангаре"/>)}
+        <SectionTitle>🛥️ Флот</SectionTitle>
+        <p style={S.tabHint}>Корабли и яхты: счастье + доход от чартера.</p>
+        {SEA.map(b=><ShopRow key={b.id} item={b} owned={(s.sea||[]).includes(b.id)} cash={s.cash} onBuy={()=>buyItem(b,"sea")} extra={`+${money(b.income)}/час · +${b.joy}☺`} ownTxt="в порту"/>)}
+        <SectionTitle>✈️ Путешествия</SectionTitle>{COUNTRIES.map(b=><ShopRow key={b.id} item={b} owned={s.countries.includes(b.id)} cash={s.cash} onBuy={()=>buyItem(b,"country")} extra={`+${b.joy} счастья`} btnTxt="лететь" ownTxt="был"/>)}
+      </div>)}
+
+      {tab==="money"&&(<div>
+        <div style={S.subTabs}>
+          <SubTab active={moreTab==="stocks"} onClick={()=>setMoreTab("stocks")}>📈 Биржа</SubTab>
+          <SubTab active={moreTab==="bank"} onClick={()=>setMoreTab("bank")}>🏦 Банк</SubTab>
+          <SubTab active={moreTab==="casino"} onClick={()=>setMoreTab("casino")}>🎰 Казино</SubTab>
+          <SubTab active={moreTab==="crime"} onClick={()=>setMoreTab("crime")}>🥷 Дела</SubTab>
+        </div>
+        {moreTab==="stocks"&&(<div>
+          <SectionTitle>Акции</SectionTitle>
+          {STOCKS.map(x=>{const o=s.stocks[x.id]||0;return(<div key={x.id} style={S.row}><div><div style={S.rowName}>{x.emoji} {x.name} {o>0&&<span style={S.owned}>×{o}</span>}</div><div style={S.rowSub}>{money(prices[x.id])} за шт</div></div><div style={{display:"flex",gap:6}}><button style={{...S.miniBtn,background:"#24382e",color:gold}} onClick={()=>sellAsset(x,"stock")}>−</button><button style={{...S.miniBtn,...(s.cash<prices[x.id]?S.btnLock:{})}} onClick={()=>buyAsset(x,"stock")}>+</button></div></div>);})}
+          <SectionTitle>Криптовалюта</SectionTitle>
+          {CRYPTO.map(x=>{const o=s.crypto[x.id]||0;return(<div key={x.id} style={S.row}><div><div style={S.rowName}>{x.emoji} {x.name} {o>0&&<span style={S.owned}>×{o}</span>}</div><div style={S.rowSub}>{money(prices[x.id])} за шт</div></div><div style={{display:"flex",gap:6}}><button style={{...S.miniBtn,background:"#24382e",color:gold}} onClick={()=>sellAsset(x,"crypto")}>−</button><button style={{...S.miniBtn,...(s.cash<prices[x.id]?S.btnLock:{})}} onClick={()=>buyAsset(x,"crypto")}>+</button></div></div>);})}
+        </div>)}
+        {moreTab==="bank"&&(<div>
+          <SectionTitle>Вклад</SectionTitle>
+          <div style={S.passiveCard}><div style={S.passiveBig}>{money(s.bankDeposit)}</div><div style={S.passiveLbl}>на вкладе · +0.2%/тик</div></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}><button style={S.wideBtn} onClick={()=>deposit(10000)}>Вложить 10к</button><button style={S.wideBtn} onClick={()=>deposit(Math.floor(s.cash))}>Вложить всё</button><button style={{...S.wideBtn,gridColumn:"1/3",background:"#24382e",color:gold}} onClick={withdraw}>Снять всё</button></div>
+          <SectionTitle>Кредит</SectionTitle>
+          <div style={S.passiveCard}><div style={{...S.passiveBig,color:s.loan>0?"#e0574e":"#5fbf8f"}}>{money(s.loan)}</div><div style={S.passiveLbl}>долг · +0.4%/тик</div></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}><button style={S.wideBtn} onClick={()=>takeLoan(50000)}>Взять 50к</button><button style={S.wideBtn} onClick={()=>takeLoan(1000000)}>Взять 1млн</button><button style={{...S.wideBtn,gridColumn:"1/3",background:"#3a2226",color:"#e8b4bb"}} onClick={payLoan}>Погасить</button></div>
+        </div>)}
+        {moreTab==="casino"&&(<div>
+          <SectionTitle>Казино</SectionTitle>
+          {[["coin","🪙 Монетка","×2 при орле"],["dice","🎲 Кости","×3 если 5-6"],["slot","🎰 Слоты","до ×20"]].map(([type,name,desc])=>(<div key={type} style={{...S.row,flexDirection:"column",alignItems:"stretch",gap:8}}><div><div style={S.rowName}>{name}</div><div style={S.rowSub}>{desc}</div></div><div style={{display:"flex",gap:6}}>{[1000,10000,100000,1000000].map(bet=><button key={bet} style={{...S.miniBtn,flex:1,...(s.cash<bet?S.btnLock:{})}} onClick={()=>casino(bet,type)}>{money(bet)}</button>)}</div></div>))}
+        </div>)}
+        {moreTab==="crime"&&(<div>
+          <SectionTitle>Тёмные дела</SectionTitle>
+          <p style={S.tabHint}>{s.staff.includes("lawyer")?"Юрист снижает риск ⚖️":"Найми юриста, чтобы реже попадаться."}</p>
+          {CRIMES.map(c=>(<div key={c.id} style={S.row}><div><div style={S.rowName}>{c.emoji} {c.name}</div><div style={S.rowSub}>куш {money(c.min)}–{money(c.max)} · риск {Math.round(c.risk*100)}%</div></div><button style={S.buyBtn} onClick={()=>doCrime(c)}>рискнуть</button></div>))}
+        </div>)}
+      </div>)}
+
+      {tab==="love"&&(<div>
+        <SectionTitle>Личная жизнь</SectionTitle>
+        <p style={S.tabHint}>{s.married?`В браке ❤️ · детей ${s.kids}`:s.partner?"Есть партнёр · отношения "+Math.round(s.love):"Пока один."}</p>
+        {DATES.map(d=>(<div key={d.id} style={S.row}><div><div style={S.rowName}>{d.emoji} {d.name}</div><div style={S.rowSub}>{money(d.cost)} · +{d.love} отн.</div></div><button style={{...S.buyBtn,...(s.cash<d.cost?S.btnLock:{})}} onClick={()=>goDate(d)}>вперёд</button></div>))}
+        <SectionTitle>Семья</SectionTitle>
+        <div style={S.row}><div><div style={S.rowName}>💍 Свадьба</div><div style={S.rowSub}>80 отношений · 200к</div></div><button style={{...S.buyBtn,...(s.married?S.btnOwn:(s.love<80||s.cash<200000)?S.btnLock:{})}} onClick={()=>!s.married&&marry()} disabled={s.married}>{s.married?"в браке":"жениться"}</button></div>
+        <div style={S.row}><div><div style={S.rowName}>👶 Ребёнок</div><div style={S.rowSub}>нужен брак · 50к</div></div><button style={{...S.buyBtn,...(!s.married||s.cash<50000?S.btnLock:{})}} onClick={haveKid}>+1</button></div>
+      </div>)}
+
+      {tab==="me"&&(<div>
+        <div style={S.meHead}><div style={S.meAvatar}>{HAIR[s.avatar]}</div><div><div style={S.rowName}>{s.name}</div><div style={S.rowSub}>{s.age} лет · день {s.day}{s.married?" · в браке 💍":""}{s.kids?` · детей ${s.kids}`:""}</div></div></div>
+        <SectionTitle>Внешность</SectionTitle>
+        <div style={S.avatarPickRow}>{HAIR.map((h,i)=><button key={i} onClick={()=>setS(p=>({...p,avatar:i}))} style={{...S.avatarChip,...(s.avatar===i?S.avatarChipOn:{})}}>{h}</button>)}</div>
+        <SectionTitle>Капитал</SectionTitle>
+        <div style={S.passiveCard}><div style={S.passiveBig}>{money(nw)}</div><div style={S.passiveLbl}>чистая стоимость со всеми активами</div></div>
+        <SectionTitle>Достижения · {s.achievements.length}/{ACHIEVEMENTS.length}</SectionTitle>
+        <div style={S.achGrid}>{ACHIEVEMENTS.map(a=>{const g=s.achievements.includes(a.id);return(<div key={a.id} style={{...S.achBox,...(g?S.achGot:{})}}><div style={{fontSize:22,filter:g?"none":"grayscale(1) opacity(.4)"}}>{a.emoji}</div><div style={{...S.achLbl,color:g?gold:"#5f7268"}}>{a.name}</div></div>);})}</div>
+        <SectionTitle>Нажито</SectionTitle>
+        <div style={S.ownGrid}>
+          <OwnBox label="Бизнесы" n={s.businesses.length} emoji="🏭"/><OwnBox label="Машины" n={s.cars.length} emoji="🏎️"/><OwnBox label="Недвижимость" n={s.property.length} emoji="🏡"/>
+          <OwnBox label="Роскошь" n={s.luxury.length} emoji="💎"/><OwnBox label="Питомцы" n={s.pets.length} emoji="🐾"/><OwnBox label="Страны" n={s.countries.length} emoji="✈️"/>
+          <OwnBox label="Персонал" n={s.staff.length} emoji="🤝"/><OwnBox label="Образование" n={s.education.length} emoji="🎓"/><OwnBox label="Опыт" n={s.xp} emoji="⭐"/>
+          <OwnBox label="Штат" n={Object.values(s.workers||{}).reduce((a,b)=>a+b,0)} emoji="🧑‍💼"/><OwnBox label="Авиация" n={(s.air||[]).length} emoji="🛩️"/><OwnBox label="Флот" n={(s.sea||[]).length} emoji="🛥️"/>
+        </div>
+        <SectionTitle>Сохранение</SectionTitle>
+        <p style={S.tabHint}>Прогресс сохраняется сам в этом браузере. Чтобы перенести на другой телефон или отдать другу — экспортируй код и дай ему вставить.</p>
+        <button style={{...S.bigBtn,background:"#15251e",color:gold}} onClick={exportSave}>📤 Экспорт сейва (код)</button>
+        <button style={{...S.bigBtn,marginTop:10,background:"#1a3327",color:"#5fbf8f"}} onClick={cheat}>💰 +1 млн ₽ и +500 опыта</button>
+        <button style={{...S.bigBtn,marginTop:10,background:"#3a2226",color:"#e8b4bb"}} onClick={()=>{if(confirm("Начать заново? Прогресс сотрётся."))
+{setS(START);setStarted(false);}}}>Начать заново</button>
+      </div>)}
+    </div>
+
+    {garageCar!==null&&s.cars[garageCar]&&(()=>{const car=s.cars[garageCar];const base=CARS.find(c=>c.id===car.carId);
+      return(<div style={S.modalWrap} onClick={()=>setGarageCar(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}>
+        <div style={S.modalTitle}>{base.brand} {base.model}</div>
+        <div style={S.modalCar}><CarSVG body={base.body} color={car.paint} big/></div>
+        <div style={S.modalSub}>Цвет</div><div style={S.paintRow}>{PAINTS.map(c=><button key={c} onClick={()=>paintCar(garageCar,c)} style={{...S.paintDot,background:c,outline:car.paint===c?"2px solid #c9a227":"none"}}/>)}</div>
+        <div style={S.modalSub}>Тюнинг</div>
+        {UPGRADES.map(up=>{const has=car.upgrades.includes(up.id);const cost=Math.floor(base.cost*up.costMul);return(<div key={up.id} style={S.row}><div><div style={S.rowName}>{up.emoji} {up.name} {has&&"✓"}</div><div style={S.rowSub}>+{up.speed} скорости · {money(cost)}</div></div><button style={{...S.buyBtn,...(has?S.btnOwn:{}),...(s.cash<cost&&!has?S.btnLock:{})}} onClick={()=>!has&&upgradeCar(garageCar,up)} disabled={has}>{has?"есть":"ставить"}</button></div>);})}
+        <button style={{...S.bigBtn,marginTop:14}} onClick={()=>setGarageCar(null)}>Закрыть</button>
+      </div></div>);})()}
+
+    {saveModal&&<SaveBox code={saveCode} setCode={setSaveCode} onImport={importSave} onClose={()=>setSaveModal(false)} mode="export" />}
+
+    <div style={S.nav}>
+      <NavBtn active={tab==="home"} onClick={()=>setTab("home")} emoji="🏠" label="Дом"/>
+      <NavBtn active={tab==="career"} onClick={()=>setTab("career")} emoji="💼" label="Работа"/>
+      <NavBtn active={tab==="biz"} onClick={()=>setTab("biz")} emoji="🏭" label="Империя"/>
+      <NavBtn active={tab==="cars"} onClick={()=>setTab("cars")} emoji="🏎️" label="Гараж"/>
+      <NavBtn active={tab==="money"} onClick={()=>setTab("money")} emoji="📈" label="Финансы"/>
+      <NavBtn active={tab==="shop"} onClick={()=>setTab("shop")} emoji="🛍️" label="Покупки"/>
+      <NavBtn active={tab==="love"} onClick={()=>setTab("love")} emoji="❤️" label="Личное"/>
+      <NavBtn active={tab==="me"} onClick={()=>setTab("me")} emoji="👤" label="Я"/>
+    </div>
+  </div></div>);
+}
+
+function SaveBox({code,setCode,onImport,onClose,mode}){
+  const copy=()=>{ navigator.clipboard?.writeText(code); };
+  return (<div style={S.modalWrap} onClick={onClose}><div style={S.modal} onClick={e=>e.stopPropagation()}>
+    <div style={S.modalTitle}>{mode==="export"?"Твой код сейва":"Загрузить сейв"}</div>
+    <p style={{...S.tabHint,marginTop:10}}>{mode==="export"?"Скопируй код и вставь на другом телефоне или отправь другу.":"Вставь код сейва, чтобы продолжить игру."}</p>
+    <textarea value={code} onChange={e=>setCode(e.target.value)} placeholder="Код сейва..." style={S.textarea} readOnly={mode==="export"} />
+    {mode==="export"?<button style={S.bigBtn} onClick={copy}>📋 Копировать</button>:<button style={S.bigBtn} onClick={onImport}>Загрузить</button>}
+    <button style={{...S.bigBtn,marginTop:10,background:"#24382e",color:gold}} onClick={onClose}>Закрыть</button>
+  </div></div>);
+}
+
+function CarSVG({body,color,small,big}){
+  const w=big?200:small?54:130; const dark=shade(color,-30);
+  const shapes={
+    bike:<g><rect x="30" y="34" width="40" height="8" rx="4" fill={color}/><circle cx="30" cy="52" r="9" fill="#222" stroke="#555" strokeWidth="2"/><circle cx="72" cy="52" r="9" fill="#222" stroke="#555" strokeWidth="2"/><rect x="46" y="22" width="6" height="16" fill={dark}/></g>,
+    hatch:<g><path d="M18 46 L30 30 L70 30 L84 46 Z" fill={color}/><rect x="14" y="44" width="74" height="12" rx="4" fill={dark}/><rect x="34" y="33" width="30" height="12" rx="2" fill="#bcd4e6"/><circle cx="30" cy="58" r="9" fill="#222" stroke="#888" strokeWidth="2"/><circle cx="72" cy="58" r="9" fill="#222" stroke="#888" strokeWidth="2"/></g>,
+    sedan:<g><path d="M14 46 L26 30 L74 30 L92 46 Z" fill={color}/><rect x="10" y="44" width="88" height="12" rx="4" fill={dark}/><rect x="30" y="33" width="42" height="11" rx="2" fill="#bcd4e6"/><circle cx="30" cy="58" r="9" fill="#222" stroke="#888" strokeWidth="2"/><circle cx="78" cy="58" r="9" fill="#222" stroke="#888" strokeWidth="2"/></g>,
+    suv:<g><path d="M14 44 L22 26 L80 26 L94 44 Z" fill={color}/><rect x="10" y="42" width="88" height="16" rx="4" fill={dark}/><rect x="28" y="30" width="46" height="13" rx="2" fill="#bcd4e6"/><circle cx="30" cy="60" r="10" fill="#222" stroke="#888" strokeWidth="2"/><circle cx="78" cy="60" r="10" fill="#222" stroke="#888" strokeWidth="2"/></g>,
+    sport:<g><path d="M10 48 L28 36 L48 28 L74 30 L96 48 Z" fill={color}/><rect x="8" y="46" width="92" height="10" rx="5" fill={dark}/><path d="M40 36 L66 33 L74 44 L38 44 Z" fill="#9fc0d8"/><circle cx="28" cy="58" r="9" fill="#222" stroke="#c9a227" strokeWidth="2"/><circle cx="80" cy="58" r="9" fill="#222" stroke="#c9a227" strokeWidth="2"/></g>,
+    super:<g><path d="M6 50 L26 40 L50 30 L80 34 L102 50 Z" fill={color}/><rect x="4" y="48" width="100" height="8" rx="4" fill={dark}/><path d="M44 38 L72 36 L80 46 L40 46 Z" fill="#111"/><rect x="96" y="30" width="10" height="8" fill={dark}/><circle cx="26" cy="57" r="9" fill="#222" stroke="#c9a227" strokeWidth="2.5"/><circle cx="82" cy="57" r="9" fill="#222" stroke="#c9a227" strokeWidth="2.5"/></g>,
+    f1:<g><rect x="6" y="46" width="98" height="7" rx="3" fill={color}/><path d="M30 46 L54 34 L64 34 L70 46 Z" fill={dark}/><rect x="2" y="40" width="16" height="4" fill={color}/><rect x="92" y="30" width="16" height="4" fill={color}/><circle cx="26" cy="56" r="10" fill="#111" stroke="#666" strokeWidth="3"/><circle cx="84" cy="56" r="10" fill="#111" stroke="#666" strokeWidth="3"/></g>,
+    limo:<g><path d="M6 46 L18 32 L96 32 L104 46 Z" fill={color}/><rect x="3" y="44" width="104" height="12" rx="4" fill={dark}/><rect x="22" y="35" width="13" height="9" rx="2" fill="#bcd4e6"/><rect x="40" y="35" width="13" height="9" rx="2" fill="#bcd4e6"/><rect x="58" y="35" width="13" height="9" rx="2" fill="#bcd4e6"/><rect x="76" y="35" width="13" height="9" rx="2" fill="#bcd4e6"/><circle cx="24" cy="58" r="8" fill="#222" stroke="#c9a227" strokeWidth="2"/><circle cx="86" cy="58" r="8" fill="#222" stroke="#c9a227" strokeWidth="2"/></g>,
+    van:<g><path d="M14 22 L66 22 L90 42 L90 48 L14 48 Z" fill={color}/><rect x="10" y="46" width="82" height="10" rx="4" fill={dark}/><rect x="20" y="27" width="20" height="15" rx="2" fill="#bcd4e6"/><rect x="70" y="30" width="14" height="11" rx="2" fill="#bcd4e6"/><circle cx="30" cy="58" r="9" fill="#222" stroke="#888" strokeWidth="2"/><circle cx="76" cy="58" r="9" fill="#222" stroke="#888" strokeWidth="2"/></g>,
+    monster:<g><path d="M16 38 L26 22 L80 22 L94 38 Z" fill={color}/><rect x="12" y="34" width="84" height="12" rx="4" fill={dark}/><rect x="30" y="25" width="46" height="12" rx="2" fill="#bcd4e6"/><circle cx="30" cy="55" r="15" fill="#222" stroke="#666" strokeWidth="4"/><circle cx="82" cy="55" r="15" fill="#222" stroke="#666" strokeWidth="4"/></g>,
+  };
+  return <svg viewBox="0 0 110 72" width={w} height={w*0.65} style={{display:"block"}}>{shapes[body]}</svg>;
+}
+function shade(hex,amt){let c=hex.replace("#","");if(c.length===3)c=c.split("").map(x=>x+x).join("");const num=parseInt(c,16);let r=(num>>16)+amt,g=((num>>8)&255)+amt,b=(num&255)+amt;r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));return"#"+((r<<16)|(g<<8)|b).toString(16).padStart(6,"0");}
+
+function Stat({label,val,color}){return <div><div style={S.statTop}><span>{label}</span><span>{Math.round(val)}</span></div><div style={S.bar}><div style={{...S.barFill,width:val+"%",background:color}}/></div></div>;}
+function SectionTitle({children}){return <div style={S.sectionTitle}>{children}</div>;}
+function ActBtn({onClick,label,emoji,sub}){return <button style={S.actBtn} onClick={onClick}><div style={S.actEmoji}>{emoji}</div><div style={S.actLabel}>{label}</div><div style={S.actSub}>{sub}</div></button>;}
+function NavBtn({active,onClick,emoji,label}){return <button style={{...S.navBtn,...(active?S.navActive:{})}} onClick={onClick}><div style={{fontSize:17}}>{emoji}</div><div style={S.navLabel}>{label}</div></button>;}
+function SubTab({active,onClick,children}){return <button style={{...S.subTab,...(active?S.subTabOn:{})}} onClick={onClick}>{children}</button>;}
+function ShopRow({item,owned,cash,onBuy,extra,btnTxt="купить",ownTxt="есть"}){return <div style={S.row}><div><div style={S.rowName}>{item.emoji} {item.name} {owned&&<span style={S.owned}>✓</span>}</div><div style={S.rowSub}>{money(item.cost)} · {extra}</div></div><button style={{...S.buyBtn,...(cash<item.cost?S.btnLock:{}),...(owned?S.btnOwn:{})}} onClick={()=>!owned&&onBuy()} disabled={owned}>{owned?ownTxt:btnTxt}</button></div>;}
+function OwnBox({label,n,emoji}){return <div style={S.ownBox}><div style={{fontSize:22}}>{emoji}</div><div style={S.ownN}>{n}</div><div style={S.ownLbl}>{label}</div></div>;}
+
+const gold="#c9a227";
+const S={
+  wrap:{minHeight:"100vh",background:"#0c1512",display:"flex",justifyContent:"center",fontFamily:"-apple-system,system-ui,sans-serif",color:"#e8ede9"},
+  app:{width:"100%",maxWidth:460,minHeight:"100vh",background:"linear-gradient(180deg,#0f1c17,#0c1512)",display:"flex",flexDirection:"column",position:"relative"},
+  header:{display:"flex",alignItems:"center",gap:10,padding:"14px 16px 8px"},
+  avatarBox:{width:38,height:38,borderRadius:12,background:"#1a2b22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:21,border:"1px solid #24382e"},
+  name:{fontSize:15.5,fontWeight:700},day:{fontSize:11,color:"#7c9186",marginTop:1},
+  cash:{fontSize:18,fontWeight:800,color:gold},passive:{fontSize:10.5,color:"#5fbf8f",marginTop:1},
+  stats:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,padding:"2px 16px 9px"},
+  statTop:{display:"flex",justifyContent:"space-between",fontSize:10,color:"#9fb3a8",marginBottom:2},
+  bar:{height:5,background:"#1b2a24",borderRadius:4,overflow:"hidden"},barFill:{height:"100%",borderRadius:4,transition:"width .4s"},
+  flash:{position:"absolute",top:60,left:"50%",transform:"translateX(-50%)",background:gold,color:"#111",padding:"9px 18px",borderRadius:30,fontSize:13,fontWeight:700,zIndex:60,boxShadow:"0 6px 20px rgba(0,0,0,.5)",maxWidth:"92%",textAlign:"center"},
+  content:{flex:1,overflowY:"auto",padding:"4px 14px 100px"},
+  sectionTitle:{fontSize:11.5,textTransform:"uppercase",letterSpacing:1.4,color:gold,margin:"18px 4px 9px",fontWeight:700},
+  tierLbl:{fontSize:10.5,color:"#5f7a6c",letterSpacing:1,margin:"12px 4px 6px",textTransform:"uppercase"},
+  tabHint:{fontSize:12.5,color:"#8ba295",margin:"0 4px 12px",lineHeight:1.4},
+  actionGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9},
+  actBtn:{background:"#15251e",border:"1px solid #24382e",borderRadius:15,padding:"15px 8px",cursor:"pointer",color:"#e8ede9",textAlign:"center"},
+  actEmoji:{fontSize:23},actLabel:{fontSize:13.5,fontWeight:700,marginTop:5},actSub:{fontSize:10.5,color:"#7c9186",marginTop:2},
+  passiveCard:{background:"linear-gradient(135deg,#1a3327,#12241b)",border:"1px solid #2a4636",borderRadius:15,padding:"15px",textAlign:"center"},
+  passiveBig:{fontSize:23,fontWeight:800,color:"#5fbf8f"},passiveLbl:{fontSize:11,color:"#8ba295",marginTop:3},
+  log:{display:"flex",flexDirection:"column",gap:5},
+  logRow:{background:"#131f1a",borderRadius:9,padding:"9px 11px",fontSize:12,color:"#c6d4cc",lineHeight:1.4},
+  logEmpty:{fontSize:12.5,color:"#647a6f",padding:"8px 4px"},
+  row:{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#131f1a",border:"1px solid #1f2f27",borderRadius:13,padding:"11px 13px",marginBottom:7},
+  rowActive:{border:"1px solid "+gold,background:"#1a251d"},
+  rowName:{fontSize:13.5,fontWeight:600},rowSub:{fontSize:11,color:"#7c9186",marginTop:2},
+  owned:{color:gold,fontSize:11.5},
+  buyBtn:{background:gold,color:"#0c1512",border:"none",borderRadius:18,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"},
+  miniBtn:{background:gold,color:"#0c1512",border:"none",borderRadius:10,padding:"8px 12px",fontSize:12.5,fontWeight:800,cursor:"pointer",minWidth:38},
+  wideBtn:{background:gold,color:"#0c1512",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"},
+  btnLock:{background:"#2a3830",color:"#5f7268",cursor:"not-allowed"},btnOwn:{background:"#24382e",color:gold},
+  subTabs:{display:"flex",gap:6,marginTop:8},
+  subTab:{flex:1,background:"#131f1a",border:"1px solid #24382e",borderRadius:10,padding:"9px 4px",fontSize:11.5,color:"#8ba295",cursor:"pointer",fontWeight:600},
+  subTabOn:{background:"#1a251d",border:"1px solid "+gold,color:gold},
+  garageGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:6},
+  garageCard:{background:"#131f1a",border:"1px solid #24382e",borderRadius:14,padding:"12px 8px",cursor:"pointer",color:"#e8ede9",display:"flex",flexDirection:"column",alignItems:"center"},
+  garageName:{fontSize:12,fontWeight:700,marginTop:6,textAlign:"center"},garageUp:{fontSize:11,color:gold,marginTop:3},
+  ownGrid:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8},
+  ownBox:{background:"#131f1a",border:"1px solid #1f2f27",borderRadius:13,padding:"13px 8px",textAlign:"center"},
+  ownN:{fontSize:18,fontWeight:800,color:gold,marginTop:3},ownLbl:{fontSize:9.5,color:"#8ba295",marginTop:2},
+  achGrid:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8},
+  achBox:{background:"#131f1a",border:"1px solid #1f2f27",borderRadius:12,padding:"12px 6px",textAlign:"center"},
+  achGot:{border:"1px solid "+gold,background:"#1a251d"},achLbl:{fontSize:9.5,marginTop:4,lineHeight:1.2},
+  meHead:{display:"flex",alignItems:"center",gap:12,padding:"10px 4px"},
+  meAvatar:{width:52,height:52,borderRadius:16,background:"#1a2b22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,border:"1px solid #24382e"},
+  nav:{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:460,display:"flex",background:"#0a120e",borderTop:"1px solid #1c2b23",padding:"6px 1px calc(6px + env(safe-area-inset-bottom))"},
+  navBtn:{flex:1,background:"none",border:"none",color:"#5f7268",cursor:"pointer",padding:"3px 0"},
+  navActive:{color:gold},navLabel:{fontSize:8.5,marginTop:1},
+  modalWrap:{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:50,display:"flex",alignItems:"flex-end",justifyContent:"center"},
+  modal:{width:"100%",maxWidth:460,background:"#101d17",borderRadius:"20px 20px 0 0",padding:"20px 16px calc(20px + env(safe-area-inset-bottom))",maxHeight:"88vh",overflowY:"auto",border:"1px solid #24382e"},
+  modalTitle:{fontSize:18,fontWeight:800,textAlign:"center",color:gold},
+  modalCar:{display:"flex",justifyContent:"center",padding:"16px 0",background:"radial-gradient(circle,#1a2b22,transparent)",borderRadius:16,margin:"10px 0"},
+  modalSub:{fontSize:11.5,textTransform:"uppercase",letterSpacing:1,color:"#8ba295",margin:"12px 4px 8px",fontWeight:700},
+  paintRow:{display:"flex",flexWrap:"wrap",gap:9,padding:"0 4px 4px"},paintDot:{width:34,height:34,borderRadius:"50%",border:"1px solid #333",cursor:"pointer"},
+  textarea:{width:"100%",boxSizing:"border-box",height:90,background:"#0c1512",border:"1px solid #24382e",borderRadius:12,padding:12,color:"#e8ede9",fontSize:11,marginBottom:12,resize:"none",fontFamily:"monospace"},
+  startCard:{width:"100%",maxWidth:400,alignSelf:"center",margin:"auto",padding:28,textAlign:"center"},
+  logo:{width:76,height:76,borderRadius:20,background:gold,color:"#0c1512",fontSize:40,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"},
+  title:{fontSize:32,fontWeight:900,letterSpacing:4,margin:"0 0 6px"},sub:{fontSize:14,color:"#8ba295",margin:"0 0 22px"},
+  input:{width:"100%",boxSizing:"border-box",background:"#131f1a",border:"1px solid #24382e",borderRadius:14,padding:"13px 15px",fontSize:15,color:"#e8ede9",marginBottom:14,outline:"none"},
+  avatarPickRow:{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"center",marginBottom:6},
+  avatarChip:{width:40,height:40,borderRadius:12,background:"#131f1a",border:"1px solid #24382e",fontSize:20,cursor:"pointer"},
+  avatarChipOn:{border:"2px solid "+gold,background:"#1a251d"},
+  avatarLbl:{fontSize:12,color:"#8ba295",marginBottom:16},
+  bigBtn:{width:"100%",background:gold,color:"#0c1512",border:"none",borderRadius:14,padding:"14px",fontSize:15,fontWeight:800,cursor:"pointer"},
+  hint:{fontSize:11.5,color:"#647a6f",marginTop:16,lineHeight:1.5},
+  statBig:{fontSize:28,fontWeight:800,color:gold,margin:"10px 0 4px"},
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
