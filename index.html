@@ -112,10 +112,18 @@ const BUSINESSES = [
   {id:"social",name:"Соцсеть",cost:250000000,income:13000000,emoji:"📱",tier:6},
   {id:"stream",name:"Стриминг-сервис",cost:450000000,income:24000000,emoji:"🎬",tier:6},
   {id:"ai",name:"AI-корпорация",cost:1000000000,income:58000000,emoji:"🤖",tier:6},
+  {id:"quantum",name:"Квантовый концерн",cost:2500000000,income:130000000,emoji:"⚛️",tier:6},
+  {id:"robotics",name:"Роботехника-гигант",cost:6000000000,income:320000000,emoji:"🦾",tier:6},
   {id:"terraform",name:"Терраформинг планет",cost:80000000000,income:5500000000,emoji:"🌱",tier:7},
   {id:"portal",name:"Портал в измерения",cost:600000000000,income:45000000000,emoji:"🌀",tier:7},
+  {id:"asteroid",name:"Добыча астероидов",cost:15000000000,income:950000000,emoji:"☄️",tier:7},
+  {id:"stargate",name:"Межзвёздные врата",cost:120000000000,income:8000000000,emoji:"🛰️",tier:7},
+  {id:"dyson",name:"Сфера Дайсона",cost:5000000000000,income:400000000000,emoji:"🔆",tier:8},
+  {id:"blackhole",name:"Энергия чёрных дыр",cost:50000000000000,income:4200000000000,emoji:"🕳️",tier:8},
+  {id:"timelord",name:"Корпорация времени",cost:400000000000000,income:35000000000000,emoji:"⏳",tier:8},
+  {id:"multiverse",name:"Владыка мультивселенной",cost:5000000000000000,income:450000000000000,emoji:"🌠",tier:8},
 ];
-const TIER_NAMES = {1:"Старт",2:"Развитие",3:"Расширение",4:"Корпорация",5:"Магнат",6:"Легенда",7:"Космос"};
+const TIER_NAMES = {1:"Старт",2:"Развитие",3:"Расширение",4:"Корпорация",5:"Магнат",6:"Легенда",7:"Космос",8:"Мультивселенная"};
 const STAFF = [
   {id:"assistant",name:"Личный ассистент",cost:5000,desc:"энергия не падает",emoji:"🧑‍💼"},
   {id:"chef",name:"Личный повар",cost:12000,desc:"сытость держится",emoji:"👨‍🍳"},
@@ -162,6 +170,13 @@ const CARS = [
   {id:"f1",brand:"Apex",model:"GP-1",cost:12000000,joy:80,speed:320,body:"f1",base:"#dc2626"},
   {id:"phantom",brand:"Roll-R",model:"Phantom X",cost:25000000,joy:90,speed:260,body:"limo",base:"#f5f5f5"},
   {id:"concept",brand:"Aurora",model:"Vision ∞",cost:50000000,joy:100,speed:400,body:"f1",base:"#c9a227"},
+  {id:"armored",brand:"Cortege",model:"Senat Armor",cost:120000000,joy:110,speed:220,body:"limo",base:"#111827"},
+  {id:"hyperlux",brand:"Bugancci",model:"La Voiture",cost:350000000,joy:130,speed:420,body:"super",base:"#7c3aed"},
+  {id:"goldsport",brand:"Lambardi",model:"Aurum",cost:800000000,joy:150,speed:440,body:"super",base:"#c9a227"},
+  {id:"levit",brand:"Volar",model:"Levitas",cost:2000000000,joy:180,speed:500,body:"f1",base:"#0ea5e9"},
+  {id:"quantumcar",brand:"Aurora",model:"Quantum",cost:6000000000,joy:220,speed:600,body:"super",base:"#10b981"},
+  {id:"antigrav",brand:"Volar",model:"Antigrav X",cost:20000000000,joy:280,speed:800,body:"f1",base:"#f43f5e"},
+  {id:"starcar",brand:"Nebula",model:"Starrunner",cost:90000000000,joy:400,speed:1200,body:"f1",base:"#e0a800"},
 ];
 const UPGRADES = [
   {id:"engine",name:"Мотор",emoji:"⚙️",costMul:0.15,speed:30,joy:4},
@@ -189,6 +204,11 @@ const PROPERTY = [
   {id:"ranch",name:"Ранчо",cost:6000000,joy:45,emoji:"🐴"},
   {id:"dubai",name:"Небоскрёб в Дубае",cost:120000000,joy:100,emoji:"🌇"},
   {id:"orbital",name:"Орбитальная станция",cost:80000000000,joy:250,emoji:"🛰️"},
+  {id:"resort",name:"Сеть курортов",cost:2000000000,joy:160,emoji:"🏨"},
+  {id:"archipelago",name:"Архипелаг островов",cost:25000000000,joy:220,emoji:"🗺️"},
+  {id:"megacity",name:"Частный мегаполис",cost:900000000000,joy:400,emoji:"🌃"},
+  {id:"marscity",name:"Город на Марсе",cost:8000000000000,joy:600,emoji:"🔴"},
+  {id:"dyson_home",name:"Дворец у звезды",cost:100000000000000,joy:1000,emoji:"🌟"},
 ];
 const LUXURY = [
   {id:"suit",name:"Костюм на заказ",cost:4000,joy:4,emoji:"🤵"},
@@ -207,6 +227,10 @@ const LUXURY = [
   {id:"golf",name:"Свой гольф-клуб",cost:12000000,joy:55,emoji:"⛳"},
   {id:"meteorite",name:"Метеорит",cost:600000000,joy:120,emoji:"☄️"},
   {id:"throne",name:"Золотой трон",cost:8000000000,joy:180,emoji:"🪑"},
+  {id:"faberge",name:"Яйцо Фаберже",cost:40000000000,joy:250,emoji:"🥚"},
+  {id:"scepter",name:"Скипетр власти",cost:300000000000,joy:400,emoji:"🔱"},
+  {id:"galaxy_map",name:"Карта галактики (владение)",cost:5000000000000,joy:700,emoji:"🌌"},
+  {id:"timegem",name:"Камень времени",cost:80000000000000,joy:1200,emoji:"💠"},
 ];
 const PETS = [
   {id:"cat",name:"Котик",cost:3000,joy:8,emoji:"🐱"},
@@ -225,6 +249,9 @@ const PETS = [
   {id:"flamingo",name:"Фламинго",cost:90000,joy:18,emoji:"🦩"},
   {id:"elephant",name:"Слон",cost:1500000,joy:35,emoji:"🐘"},
   {id:"kraken",name:"Кракен",cost:20000000000,joy:250,emoji:"🐙"},
+  {id:"mammoth",name:"Мамонт (клон)",cost:150000000000,joy:350,emoji:"🦣"},
+  {id:"phoenix",name:"Феникс",cost:2000000000000,joy:600,emoji:"🔥"},
+  {id:"cosmicwhale",name:"Космический кит",cost:60000000000000,joy:1200,emoji:"🐋"},
 ];
 const COUNTRIES = [
   {id:"turkey",name:"Турция",cost:3000,joy:10,emoji:"🇹🇷"},
@@ -242,6 +269,10 @@ const COUNTRIES = [
   {id:"iceland",name:"Исландия",cost:400000,joy:50,emoji:"🇮🇸"},
   {id:"seychelles",name:"Сейшелы",cost:1500000,joy:70,emoji:"🏖️"},
   {id:"worldtour",name:"Кругосветка",cost:12000000,joy:95,emoji:"🌍"},
+  {id:"everest",name:"Эверест",cost:60000000,joy:120,emoji:"🏔️"},
+  {id:"deepsea",name:"Дно Марианской впадины",cost:400000000,joy:160,emoji:"🌊"},
+  {id:"iss",name:"Тур на МКС",cost:5000000000,joy:220,emoji:"🧑‍🚀"},
+  {id:"blackholetour",name:"Полёт к чёрной дыре",cost:900000000000,joy:600,emoji:"🕳️"},
 ];
 // Флот: авиация — счастье + доход от чартера/аренды
 const AIR = [
@@ -336,20 +367,22 @@ const DATES = [
   {id:"cruise2",name:"Круиз на двоих",cost:150000,love:50,emoji:"🛳️"},
   {id:"ring",name:"Кольцо с бриллиантом",cost:1500000,love:70,emoji:"💎"},
 ];
+// Баланс: сумма плюсов ≈ сумме минусов, поэтому «Случай» — это лотерея, а не печатный станок.
+// Плюс тратит энергию/сытость (в liveDay), так что спамить не выйдет.
 const EVENTS = [
-  {t:"Нашёл 500 ₽ на улице!",money:500},{t:"Штраф за парковку",money:-800},
-  {t:"Друг вернул долг",money:1500},{t:"Инвестиция выстрелила 📈",money:8000},
-  {t:"Кризис на рынке 📉",money:-6000},{t:"Налоговый возврат",money:5000},
-  {t:"Выспался ☀️",energy:40},{t:"Нашёл клиента",money:2500},
-  {t:"Выиграл в лотерею 🎟️",money:3000},{t:"Премия на работе 💸",money:4000},
-  {t:"Разбил телефон",money:-2000},{t:"Кэшбэк с карты",money:1200},
-  {t:"Наследство от дяди 🎩",money:50000},{t:"Ограбили карманника",money:-3000},
-  {t:"Кэшбэк от бизнеса 💳",money:9000},{t:"Внезапный аудит 📋",money:-12000},
-  {t:"Дивиденды пришли 📊",money:15000},{t:"Штраф от налоговой",money:-9000},
-  {t:"Клиент дал чаевые 🤝",money:6000},{t:"Прорвало трубу дома 🔧",money:-5000},
-  {t:"Продал старьё на Авито",money:3500},{t:"Выиграл спор с другом",money:2000},
-  {t:"Отличный отдых 🌴",joy:15},{t:"Заболел, отлежался",health:-10},
-  {t:"Нашёл клад на даче 🪙",money:80000},{t:"Курс валюты скакнул 💱",money:11000},
+  {t:"Нашёл 300 ₽ на улице",money:300},{t:"Потерял кошелёк",money:-400},
+  {t:"Друг вернул долг",money:1200},{t:"Штраф за парковку",money:-800},
+  {t:"Кэшбэк с карты",money:600},{t:"Разбил телефон",money:-2500},
+  {t:"Нашёл клиента 🤝",money:2000},{t:"Сломалась стиралка",money:-1500},
+  {t:"Премия на работе 💸",money:3500},{t:"Кризис на рынке 📉",money:-4000},
+  {t:"Выиграл спор с другом",money:900},{t:"Развели мошенники 🎣",money:-3500},
+  {t:"Продал старьё на Авито",money:1500},{t:"Внезапный ремонт авто",money:-2000},
+  {t:"Небольшой куш 🍀",money:5000},{t:"Прорвало трубу дома 🔧",money:-5000},
+  {t:"ДЖЕКПОТ в лотерею! 🎟️",money:25000},{t:"Крупный налоговый штраф 📋",money:-12000},
+  {t:"Скромное наследство 🎩",money:15000},{t:"Обокрали 🥷",money:-25000},
+  {t:"Выспался ☀️",energy:35},{t:"Совсем не выспался 😵",energy:-20},
+  {t:"Отличный день 🌴",joy:12},{t:"Накрыла хандра",joy:-10},
+  {t:"Приболел, отлежался",health:-8},{t:"Прошёл чекап — всё ок ✅",health:8},
 ];
 const HAIR = ["🧑","👨","👩","🧔","👱","👨‍🦰","👩‍🦰","👨‍🦱","👩‍🦱","👴","👵","🧑‍🦲","🧑‍🎤","🕴️"];
 const HAIR_LBL = ["Обычная","Классика","Каре","Борода","Блонд","Рыжий","Рыжая","Кудри М","Кудри Ж","Седой","Седая","Лысый","Рокер","Босс"];
@@ -389,6 +422,9 @@ function App(){
   const [flash,setFlash] = useState(null);
   const [garageCar,setGarageCar] = useState(null);
   const [moreTab,setMoreTab] = useState("stocks");
+  const [mktQty,setMktQty] = useState(1);        // сколько акций/крипты покупать/продавать за клик ("max" = всё)
+  const [loanInput,setLoanInput] = useState(""); // своя сумма кредита
+  const [casinoBet,setCasinoBet] = useState(1000); // текущая ставка в казино
   const [saveModal,setSaveModal] = useState(false);
   const [saveCode,setSaveCode] = useState("");
   const [prices,setPrices] = useState(()=>{const p={};[...STOCKS,...CRYPTO].forEach(x=>p[x.id]=x.price);return p;});
@@ -449,15 +485,16 @@ function App(){
   const marry=()=>{if(s.love<80)return notify("Нужно 80 отношений");if(s.cash<200000)return notify("Свадьба 200к");setS(p=>({...p,cash:p.cash-200000,married:true,joy:Math.min(100,p.joy+20)}));notify("🎉 Свадьба!");addLog("💍 Свадьба!");};
   const haveKid=()=>{if(!s.married)return notify("Сначала свадьба");if(s.cash<50000)return notify("Ребёнок 50к");setS(p=>({...p,cash:p.cash-50000,kids:p.kids+1,joy:Math.min(100,p.joy+15)}));notify("👶 Пополнение!");addLog("👶 Родился ребёнок");};
 
-  const liveDay=()=>{const e=pick(EVENTS);setS(p=>({...p,cash:Math.max(0,p.cash+(e.money||0)),energy:Math.min(100,p.energy+(e.energy||0)),joy:Math.max(0,Math.min(100,p.joy+(e.joy||0))),health:Math.max(0,Math.min(100,p.health+(e.health||0)))}));notify(e.t);addLog("🎲 "+e.t);};
+  const liveDay=()=>{if(s.energy<10)return notify("Нет сил на приключения 😴");const e=pick(EVENTS);setS(p=>({...p,cash:Math.max(0,p.cash+(e.money||0)),energy:Math.max(0,Math.min(100,p.energy-8+(e.energy||0))),hunger:Math.max(0,p.hunger-5),joy:Math.max(0,Math.min(100,p.joy+(e.joy||0))),health:Math.max(0,Math.min(100,p.health+(e.health||0)))}));notify(e.t+(e.money?(e.money>0?" +"+money(e.money):" "+money(e.money)):""));addLog("🎲 "+e.t+(e.money?` (${e.money>0?"+":""}${money(e.money)})`:""));};
   const cheat=()=>{setS(p=>({...p,cash:p.cash+1000000,xp:p.xp+500}));notify("💰 +1 млн ₽ и +500 опыта");};
 
-  const buyAsset=(x,kind)=>{const price=prices[x.id];if(s.cash<price)return notify("Не хватает");setS(p=>{const key=kind==="stock"?"stocks":"crypto";const cur={...p[key]};cur[x.id]=(cur[x.id]||0)+1;return{...p,cash:p.cash-price,[key]:cur};});notify("Куплено: "+x.name);};
-  const sellAsset=(x,kind)=>{const key=kind==="stock"?"stocks":"crypto";if(!s[key][x.id])return notify("Нечего продавать");const price=prices[x.id];setS(p=>{const cur={...p[key]};cur[x.id]-=1;if(cur[x.id]<=0)delete cur[x.id];return{...p,cash:p.cash+price,[key]:cur};});notify("Продано: +"+money(price));};
+  const buyAsset=(x,kind)=>{const price=prices[x.id];const key=kind==="stock"?"stocks":"crypto";let n=mktQty==="max"?Math.floor(s.cash/price):mktQty;if(price>s.cash)return notify("Не хватает даже на 1");if(price*n>s.cash)n=Math.floor(s.cash/price);if(n<1)return notify("Не хватает");setS(p=>{const cur={...p[key]};cur[x.id]=(cur[x.id]||0)+n;return{...p,cash:p.cash-price*n,[key]:cur};});notify(`Куплено ${n}× ${x.name}`);};
+  const sellAsset=(x,kind)=>{const key=kind==="stock"?"stocks":"crypto";const owned=s[key][x.id]||0;if(!owned)return notify("Нечего продавать");const price=prices[x.id];const n=mktQty==="max"?owned:Math.min(mktQty,owned);setS(p=>{const cur={...p[key]};cur[x.id]-=n;if(cur[x.id]<=0)delete cur[x.id];return{...p,cash:p.cash+price*n,[key]:cur};});notify(`Продано ${n}× +${money(price*n)}`);};
 
   const deposit=(amt)=>{if(s.cash<amt)return notify("Не хватает");setS(p=>({...p,cash:p.cash-amt,bankDeposit:p.bankDeposit+amt}));notify("На вклад: "+money(amt));};
   const withdraw=()=>{if(s.bankDeposit<=0)return notify("Вклад пуст");setS(p=>({...p,cash:p.cash+p.bankDeposit,bankDeposit:0}));notify("Снято");};
   const takeLoan=(amt)=>{setS(p=>({...p,cash:p.cash+amt,loan:p.loan+amt}));notify("Кредит +"+money(amt));addLog(`🏦 Кредит ${money(amt)}`);};
+  const takeLoanInput=()=>{const amt=Math.floor(parseFloat(String(loanInput).replace(/[\s ]/g,"").replace(",",".")));if(!amt||amt<=0)return notify("Введи сумму кредита");if(amt>1e18)return notify("Слишком крупная сумма");takeLoan(amt);setLoanInput("");};
   const payLoan=()=>{if(s.loan<=0)return notify("Долгов нет");const pay=Math.min(s.cash,s.loan);if(pay<=0)return notify("Нет денег");setS(p=>({...p,cash:p.cash-pay,loan:p.loan-pay}));notify("Погашено "+money(pay));};
 
   const casino=(bet,type)=>{if(s.cash<bet)return notify("Не хватает");let win=0,msg="";if(type==="coin"){win=Math.random()<0.5?bet*2:0;msg=win?"Орёл! 🪙":"Решка";}if(type==="dice"){const d=Math.ceil(Math.random()*6);win=d>=5?bet*3:0;msg=`Кости: ${d}. `+(win?"Куш!":"Мимо");}if(type==="slot"){const r=Math.random();win=r<0.05?bet*20:r<0.2?bet*3:0;msg=win>=bet*20?"🎰 ДЖЕКПОТ!":win?"🎰 Выигрыш!":"🎰 Пусто";}setS(p=>({...p,cash:p.cash-bet+win,joy:win?Math.min(100,p.joy+3):Math.max(0,p.joy-2),stats:{...p.stats,casinoWins:p.stats.casinoWins+(win?1:0)}}));notify(msg+(win?" +"+money(win):""));addLog(`🎰 ${msg}`);};
@@ -475,7 +512,7 @@ function App(){
       <div style={S.avatarLbl}>{HAIR_LBL[avatarPick]}</div>
       <button style={S.bigBtn} onClick={()=>{setS({...START,name:nameInput||"Игрок",avatar:avatarPick});setStarted(true);}}>Начать →</button>
       <button style={{...S.bigBtn,marginTop:10,background:"#15251e",color:gold}} onClick={()=>{setSaveCode("");setSaveModal(true);}}>Загрузить сейв (код)</button>
-      <p style={S.hint}>Работа, 50 бизнесов, наёмный штат с зарплатами, авиация и морской флот, акции, крипта, банк, казино, тёмные дела, семья, питомцы, путешествия, тюнинг машин. Прогресс сохраняется автоматически.</p>
+      <p style={S.hint}>Работа, 60 бизнесов в 8 тирах, наёмный штат с зарплатами, авиация и морской флот, акции, крипта, банк с крупными кредитами, казино, тёмные дела, семья, питомцы, путешествия, тюнинг машин. Прогресс сохраняется автоматически.</p>
       {saveModal && <SaveBox code={saveCode} setCode={setSaveCode} onImport={importSave} onClose={()=>setSaveModal(false)} mode="import" />}
     </div></div>);
   }
@@ -526,7 +563,7 @@ function App(){
       {tab==="biz"&&(<div>
         <SectionTitle>Империя · {income>0?"+"+money(income)+"/час":"начни строить"}</SectionTitle>
         <p style={S.tabHint}>Каждый бизнес можно купить до {BIZ_LIMIT} раз.</p>
-        {[1,2,3,4,5,6,7].map(tier=>(<div key={tier}><div style={S.tierLbl}>{TIER_NAMES[tier]}</div>
+        {[1,2,3,4,5,6,7,8].map(tier=>(<div key={tier}><div style={S.tierLbl}>{TIER_NAMES[tier]}</div>
           {BUSINESSES.filter(b=>b.tier===tier).map(b=>{const cnt=bizCount(b.id);const max=cnt>=BIZ_LIMIT;const lc=b.needCar&&s.cars.length===0,lp=b.needProp&&s.property.length===0,lock=lc||lp;
             return(<div key={b.id} style={S.row}><div><div style={S.rowName}>{b.emoji} {b.name} {cnt>0&&<span style={S.owned}>{cnt}/{BIZ_LIMIT}</span>}</div><div style={S.rowSub}>{lc?"🔒 нужна машина":lp?"🔒 нужна недвижимость":`+${money(b.income)}/час`} · {money(b.cost)}</div></div>
               <button style={{...S.buyBtn,...((s.cash<b.cost||lock||max)?S.btnLock:{})}} onClick={()=>buyBiz(b)}>{max?"макс":lock?"🔒":"открыть"}</button></div>);})}</div>))}
@@ -564,10 +601,13 @@ function App(){
           <SubTab active={moreTab==="crime"} onClick={()=>setMoreTab("crime")}>🥷 Дела</SubTab>
         </div>
         {moreTab==="stocks"&&(<div>
+          <SectionTitle>Сколько покупать/продавать за клик</SectionTitle>
+          <div style={S.qtyRow}>{[1,10,100,1000,"max"].map(q=><button key={q} style={{...S.qtyChip,...(mktQty===q?S.qtyChipOn:{})}} onClick={()=>setMktQty(q)}>{q==="max"?"Макс":"×"+q}</button>)}</div>
+          <p style={S.tabHint}>+ покупает {mktQty==="max"?"на все деньги":mktQty+" шт"}, − продаёт {mktQty==="max"?"всё":mktQty+" шт"}.</p>
           <SectionTitle>Акции</SectionTitle>
-          {STOCKS.map(x=>{const o=s.stocks[x.id]||0;return(<div key={x.id} style={S.row}><div><div style={S.rowName}>{x.emoji} {x.name} {o>0&&<span style={S.owned}>×{o}</span>}</div><div style={S.rowSub}>{money(prices[x.id])} за шт</div></div><div style={{display:"flex",gap:6}}><button style={{...S.miniBtn,background:"#24382e",color:gold}} onClick={()=>sellAsset(x,"stock")}>−</button><button style={{...S.miniBtn,...(s.cash<prices[x.id]?S.btnLock:{})}} onClick={()=>buyAsset(x,"stock")}>+</button></div></div>);})}
+          {STOCKS.map(x=>{const o=s.stocks[x.id]||0;return(<div key={x.id} style={S.row}><div><div style={S.rowName}>{x.emoji} {x.name} {o>0&&<span style={S.owned}>×{o}</span>}</div><div style={S.rowSub}>{money(prices[x.id])} за шт{o>0?` · всего ${money(prices[x.id]*o)}`:""}</div></div><div style={{display:"flex",gap:6}}><button style={{...S.miniBtn,background:"#24382e",color:gold,...(o<=0?S.btnLock:{})}} onClick={()=>sellAsset(x,"stock")}>−</button><button style={{...S.miniBtn,...(s.cash<prices[x.id]?S.btnLock:{})}} onClick={()=>buyAsset(x,"stock")}>+</button></div></div>);})}
           <SectionTitle>Криптовалюта</SectionTitle>
-          {CRYPTO.map(x=>{const o=s.crypto[x.id]||0;return(<div key={x.id} style={S.row}><div><div style={S.rowName}>{x.emoji} {x.name} {o>0&&<span style={S.owned}>×{o}</span>}</div><div style={S.rowSub}>{money(prices[x.id])} за шт</div></div><div style={{display:"flex",gap:6}}><button style={{...S.miniBtn,background:"#24382e",color:gold}} onClick={()=>sellAsset(x,"crypto")}>−</button><button style={{...S.miniBtn,...(s.cash<prices[x.id]?S.btnLock:{})}} onClick={()=>buyAsset(x,"crypto")}>+</button></div></div>);})}
+          {CRYPTO.map(x=>{const o=s.crypto[x.id]||0;return(<div key={x.id} style={S.row}><div><div style={S.rowName}>{x.emoji} {x.name} {o>0&&<span style={S.owned}>×{o}</span>}</div><div style={S.rowSub}>{money(prices[x.id])} за шт{o>0?` · всего ${money(prices[x.id]*o)}`:""}</div></div><div style={{display:"flex",gap:6}}><button style={{...S.miniBtn,background:"#24382e",color:gold,...(o<=0?S.btnLock:{})}} onClick={()=>sellAsset(x,"crypto")}>−</button><button style={{...S.miniBtn,...(s.cash<prices[x.id]?S.btnLock:{})}} onClick={()=>buyAsset(x,"crypto")}>+</button></div></div>);})}
         </div>)}
         {moreTab==="bank"&&(<div>
           <SectionTitle>Вклад</SectionTitle>
@@ -575,11 +615,21 @@ function App(){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}><button style={S.wideBtn} onClick={()=>deposit(10000)}>Вложить 10к</button><button style={S.wideBtn} onClick={()=>deposit(Math.floor(s.cash))}>Вложить всё</button><button style={{...S.wideBtn,gridColumn:"1/3",background:"#24382e",color:gold}} onClick={withdraw}>Снять всё</button></div>
           <SectionTitle>Кредит</SectionTitle>
           <div style={S.passiveCard}><div style={{...S.passiveBig,color:s.loan>0?"#e0574e":"#5fbf8f"}}>{money(s.loan)}</div><div style={S.passiveLbl}>долг · +0.4%/тик</div></div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}><button style={S.wideBtn} onClick={()=>takeLoan(50000)}>Взять 50к</button><button style={S.wideBtn} onClick={()=>takeLoan(1000000)}>Взять 1млн</button><button style={{...S.wideBtn,gridColumn:"1/3",background:"#3a2226",color:"#e8b4bb"}} onClick={payLoan}>Погасить</button></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:10}}>{[1e6,1e7,1e8,1e9,1e10,1e12].map(a=><button key={a} style={{...S.wideBtn,fontSize:12,padding:"11px 4px"}} onClick={()=>takeLoan(a)}>+{money(a)}</button>)}</div>
+          <div style={{display:"flex",gap:8,marginTop:8}}>
+            <input style={{background:"#131f1a",border:"1px solid #24382e",borderRadius:12,padding:"12px 14px",fontSize:14,color:"#e8ede9",outline:"none",flex:1,minWidth:0}} placeholder="Своя сумма, ₽" inputMode="numeric" value={loanInput} onChange={e=>setLoanInput(e.target.value)} />
+            <button style={{...S.wideBtn,padding:"12px 18px",whiteSpace:"nowrap"}} onClick={takeLoanInput}>Взять</button>
+          </div>
+          <button style={{...S.wideBtn,marginTop:8,width:"100%",background:"#3a2226",color:"#e8b4bb"}} onClick={payLoan}>Погасить долг</button>
         </div>)}
         {moreTab==="casino"&&(<div>
-          <SectionTitle>Казино</SectionTitle>
-          {[["coin","🪙 Монетка","×2 при орле"],["dice","🎲 Кости","×3 если 5-6"],["slot","🎰 Слоты","до ×20"]].map(([type,name,desc])=>(<div key={type} style={{...S.row,flexDirection:"column",alignItems:"stretch",gap:8}}><div><div style={S.rowName}>{name}</div><div style={S.rowSub}>{desc}</div></div><div style={{display:"flex",gap:6}}>{[1000,10000,100000,1000000].map(bet=><button key={bet} style={{...S.miniBtn,flex:1,...(s.cash<bet?S.btnLock:{})}} onClick={()=>casino(bet,type)}>{money(bet)}</button>)}</div></div>))}
+          <SectionTitle>Ставка</SectionTitle>
+          <div style={S.qtyRow}>{[1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10,1e12].map(b=><button key={b} style={{...S.qtyChip,...(casinoBet===b?S.qtyChipOn:{})}} onClick={()=>setCasinoBet(b)}>{money(b)}</button>)}</div>
+          <div style={{display:"flex",gap:8,margin:"4px 0 6px"}}>
+            <input style={{background:"#131f1a",border:"1px solid #24382e",borderRadius:12,padding:"12px 14px",fontSize:14,color:"#e8ede9",outline:"none",flex:1,minWidth:0}} placeholder="Своя ставка, ₽" inputMode="numeric" value={casinoBet} onChange={e=>{const v=Math.floor(parseFloat(String(e.target.value).replace(/[\s ]/g,"").replace(",",".")));setCasinoBet(isNaN(v)?0:v);}} />
+          </div>
+          <p style={S.tabHint}>Текущая ставка: <b style={{color:gold}}>{money(casinoBet||0)}</b> {s.cash<casinoBet&&<span style={{color:"#e0574e"}}>· не хватает денег</span>}</p>
+          {[["coin","🪙 Монетка","×2 при орле (шанс 50%)"],["dice","🎲 Кости","×3 если выпало 5–6"],["slot","🎰 Слоты","×3 обычно, джекпот ×20"]].map(([type,name,desc])=>(<div key={type} style={S.row}><div><div style={S.rowName}>{name}</div><div style={S.rowSub}>{desc}</div></div><button style={{...S.buyBtn,...((s.cash<casinoBet||casinoBet<=0)?S.btnLock:{})}} onClick={()=>casino(casinoBet,type)}>Играть</button></div>))}
         </div>)}
         {moreTab==="crime"&&(<div>
           <SectionTitle>Тёмные дела</SectionTitle>
@@ -718,6 +768,9 @@ const S={
   subTabs:{display:"flex",gap:6,marginTop:8},
   subTab:{flex:1,background:"#131f1a",border:"1px solid #24382e",borderRadius:10,padding:"9px 4px",fontSize:11.5,color:"#8ba295",cursor:"pointer",fontWeight:600},
   subTabOn:{background:"#1a251d",border:"1px solid "+gold,color:gold},
+  qtyRow:{display:"flex",flexWrap:"wrap",gap:6,margin:"4px 0 6px"},
+  qtyChip:{background:"#131f1a",border:"1px solid #24382e",borderRadius:9,padding:"7px 11px",fontSize:12,color:"#8ba295",cursor:"pointer",fontWeight:700},
+  qtyChipOn:{background:"#1a251d",border:"1px solid "+gold,color:gold},
   garageGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:6},
   garageCard:{background:"#131f1a",border:"1px solid #24382e",borderRadius:14,padding:"12px 8px",cursor:"pointer",color:"#e8ede9",display:"flex",flexDirection:"column",alignItems:"center"},
   garageName:{fontSize:12,fontWeight:700,marginTop:6,textAlign:"center"},garageUp:{fontSize:11,color:gold,marginTop:3},
