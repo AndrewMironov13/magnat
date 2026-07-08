@@ -8,6 +8,7 @@
 <title>МАГНАТ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
@@ -684,7 +685,7 @@ function App(){
         <SectionTitle>Гараж · {s.cars.length} авто</SectionTitle>
         {s.cars.length===0&&<p style={S.tabHint}>Гараж пуст. Купи машину ниже ↓</p>}
         {s.cars.length>0&&<div style={S.driveBanner} onClick={()=>setDrive(0)}>
-          <div><div style={{fontSize:15,fontWeight:800,color:"#fff"}}>🏁 Тест-драйв</div><div style={{fontSize:11.5,color:"#dfe6ff",marginTop:2}}>Гоняй по трассе, собирай монеты · рекорд {s.driveBest||0} м</div></div>
+          <div><div style={{fontSize:15,fontWeight:800,color:"#fff"}}>🏁 Свободная езда 3D</div><div style={{fontSize:11.5,color:"#dfe6ff",marginTop:2}}>Катайся по лесу, собирай монеты · рекорд {s.driveBest||0} 🪙</div></div>
           <div style={{fontSize:26}}>🏎️💨</div>
         </div>}
         <div style={S.garageGrid}>{s.cars.map((car,i)=>{const b=CARS.find(c=>c.id===car.carId);return(<div key={i} style={S.garageCard}><button onClick={()=>setGarageCar(i)} style={{background:"none",border:"none",cursor:"pointer",color:"inherit",width:"100%",display:"flex",flexDirection:"column",alignItems:"center"}}><CarSVG body={b.body} color={car.paint}/><div style={S.garageName}>{b.brand} {b.model}</div><div style={S.garageUp}>{car.upgrades.length>0?car.upgrades.map(u=>UPGRADES.find(x=>x.id===u).emoji).join(""):"тюнинг →"}</div></button><button style={S.driveMini} onClick={()=>setDrive(i)}>🏁 прокатиться</button></div>);})}</div>
@@ -790,7 +791,7 @@ function App(){
           <div style={S.econBox}><div style={S.econLbl}>Долг</div><div style={{...S.econVal,color:s.loan>0?"#e0574e":"#5fbf8f"}}>{money(s.loan)}</div></div>
           <div style={S.econBox}><div style={S.econLbl}>Портфель</div><div style={{...S.econVal,color:"#8b5cf6"}}>{money(portfolioVal)}</div></div>
           <div style={S.econBox}><div style={S.econLbl}>Штат</div><div style={{...S.econVal,color:"#eef0fb"}}>{Object.values(s.workers||{}).reduce((a,b)=>a+b,0)}</div></div>
-          <div style={S.econBox}><div style={S.econLbl}>Рекорд заезда</div><div style={{...S.econVal,color:"#eef0fb"}}>{s.driveBest||0} м</div></div>
+          <div style={S.econBox}><div style={S.econLbl}>Рекорд заезда</div><div style={{...S.econVal,color:"#eef0fb"}}>{s.driveBest||0} 🪙</div></div>
           <div style={S.econBox}><div style={S.econLbl}>Фаза</div><div style={{...S.econVal,color:econ.c,fontSize:11}}>{econ.n}</div></div>
         </div>
         <SectionTitle>Достижения · {s.achievements.length}/{ACHIEVEMENTS.length}</SectionTitle>
@@ -821,7 +822,7 @@ function App(){
       </div></div>);})()}
 
     {drive!==null&&s.cars[drive]&&(()=>{const car=s.cars[drive];const base=CARS.find(c=>c.id===car.carId);
-      return <DriveGame carDef={base} car={car} best={s.driveBest||0} onExit={()=>setDrive(null)} onEarn={(reward,dist)=>{setS(p=>({...p,cash:p.cash+reward,driveBest:Math.max(p.driveBest||0,dist)}));addLog(`🏁 Заезд: +${money(reward)} (${dist} м)`);}} />;})()}
+      return <DriveGame carDef={base} car={car} best={s.driveBest||0} onExit={()=>setDrive(null)} onEarn={(reward,coins)=>{setS(p=>({...p,cash:p.cash+reward,driveBest:Math.max(p.driveBest||0,coins)}));addLog(`🏁 Заезд: собрано ${coins} 🪙 (+${money(reward)})`);}} />;})()}
 
     {saveModal&&<SaveBox code={saveCode} setCode={setSaveCode} onImport={importSave} onClose={()=>setSaveModal(false)} mode="export" />}
 
@@ -891,63 +892,97 @@ function Chart({data,color,id,h}){
 }
 
 // ============ МИНИ-ИГРА: ЗАЕЗД ============
-function drawSideCar(ctx,x,y,w,color){
-  const h=w*0.42, dark=shade(color,-40);
-  ctx.fillStyle=dark; ctx.fillRect(x, y-h*0.5, w, h*0.55); // низ
-  ctx.fillStyle=color; // кабина
-  ctx.beginPath(); ctx.moveTo(x+w*0.18,y-h*0.5); ctx.lineTo(x+w*0.34,y-h); ctx.lineTo(x+w*0.72,y-h); ctx.lineTo(x+w*0.86,y-h*0.5); ctx.closePath(); ctx.fill();
-  ctx.fillStyle="#bcd4e6"; ctx.fillRect(x+w*0.38,y-h*0.92,w*0.28,h*0.36); // окно
-  ctx.fillStyle="#111"; const r=h*0.34;
-  ctx.beginPath(); ctx.arc(x+w*0.26,y,r,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(x+w*0.74,y,r,0,7); ctx.fill();
-  ctx.fillStyle=gold; ctx.beginPath(); ctx.arc(x+w*0.26,y,r*0.45,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(x+w*0.74,y,r*0.45,0,7); ctx.fill();
-}
+// ============ 3D-ЗАЕЗД (свободная езда, Three.js) ============
 function DriveGame({carDef,car,best,onExit,onEarn}){
-  const cvRef=useRef(null); const stRef=useRef(null); const [runId,setRunId]=useState(0);
-  const [hud,setHud]=useState({dist:0,coins:0}); const [over,setOver]=useState(null);
-  const jump=()=>{const st=stRef.current; if(st&&!st.over&&st.y<=0.1){st.vy=15;st.y=0.01;}};
+  const mountRef=useRef(null);
+  const ctrl=useRef({gas:false,brake:false,left:false,right:false});
+  const coinsRef=useRef(0);
+  const [hud,setHud]=useState({speed:0,coins:0});
+  const [noWebgl,setNoWebgl]=useState(false);
+  const doExit=()=>{ const coins=coinsRef.current; const reward=coins*1500; if(reward>0)onEarn(reward,coins); onExit(); };
   useEffect(()=>{
-    const cv=cvRef.current; if(!cv) return; const ctx=cv.getContext('2d');
-    const baseSpeed=3.2 + carDef.speed/90 + (car.upgrades?car.upgrades.length:0)*0.5;
-    const st={dist:0,coins:0,y:0,vy:0,over:false,obs:[],coins2:[],trees:[],scroll:0,tick:0}; stRef.current=st;
-    let raf;
-    function loop(){
-      const W=cv.width=cv.clientWidth, H=cv.height=cv.clientHeight, gy=H-Math.max(70,H*0.28);
-      st.tick++; st.dist+=baseSpeed; st.scroll=(st.scroll+baseSpeed)%44;
-      st.vy-=0.8; st.y=Math.max(0,st.y+st.vy); if(st.y<=0)st.vy=0;
-      if(st.tick%Math.max(28,70-Math.floor(st.dist/500))===0) st.obs.push({x:W+30,w:22+Math.random()*16,h:20+Math.random()*26,hit:false});
-      if(st.tick%38===0) st.coins2.push({x:W+30,y:gy-30-Math.random()*90,got:false});
-      if(st.tick%50===0) st.trees.push({x:W+40,s:0.6+Math.random()*0.9});
-      st.obs.forEach(o=>o.x-=baseSpeed); st.coins2.forEach(c=>c.x-=baseSpeed); st.trees.forEach(t=>t.x-=baseSpeed*0.55);
-      st.obs=st.obs.filter(o=>o.x>-50); st.coins2=st.coins2.filter(c=>c.x>-40); st.trees=st.trees.filter(t=>t.x>-70);
-      const carX=W*0.16, carW=Math.min(78,W*0.16), carBottom=gy-st.y;
-      st.obs.forEach(o=>{ if(!o.hit && o.x<carX+carW-12 && o.x+o.w>carX+12 && st.y<o.h){ o.hit=true; st.over=true; } });
-      st.coins2.forEach(c=>{ if(!c.got && Math.abs(c.x-(carX+carW/2))<28 && Math.abs((carBottom-carW*0.2)-c.y)<46){ c.got=true; st.coins++; } });
-      // фон
-      const sky=ctx.createLinearGradient(0,0,0,H); sky.addColorStop(0,"#1b1040"); sky.addColorStop(1,"#3b1d6e"); ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
-      ctx.fillStyle="#f4b942"; ctx.beginPath(); ctx.arc(W-60,54,24,0,7); ctx.fill();
-      st.trees.forEach(t=>{const th=70*t.s; ctx.fillStyle="#6b3f1d"; ctx.fillRect(t.x-4*t.s,gy-th+14,8*t.s,th-14); ctx.fillStyle="#2f8a52"; ctx.beginPath(); ctx.arc(t.x,gy-th+14,24*t.s,0,7); ctx.fill();});
-      ctx.fillStyle="#241a3a"; ctx.fillRect(0,gy+14,W,H); ctx.fillStyle="#3a2b5c"; ctx.fillRect(0,gy+10,W,6);
-      ctx.fillStyle=gold; for(let x=-44+(44-st.scroll);x<W;x+=44) ctx.fillRect(x,gy+28,22,4);
-      st.obs.forEach(o=>{ctx.fillStyle="#e0574e"; ctx.fillRect(o.x,gy+2-o.h,o.w,o.h); ctx.fillStyle="#7a1f2b"; ctx.fillRect(o.x,gy-2,o.w,4);});
-      st.coins2.forEach(c=>{ if(c.got)return; ctx.fillStyle="#f4d03f"; ctx.beginPath(); ctx.arc(c.x,c.y,9,0,7); ctx.fill(); ctx.strokeStyle="#b8860b"; ctx.lineWidth=2; ctx.stroke(); });
-      drawSideCar(ctx,carX,carBottom,carW,car.paint);
-      if(!st.over){ if(st.tick%3===0)setHud({dist:Math.floor(st.dist/10),coins:st.coins}); raf=requestAnimationFrame(loop); }
-      else { const dist=Math.floor(st.dist/10); const reward=dist*15+st.coins*800; onEarn(reward,dist); setOver({dist,coins:st.coins,reward}); }
+    if(!window.THREE){ setNoWebgl(true); return; }
+    const THREE=window.THREE; const mount=mountRef.current; if(!mount) return;
+    let W=mount.clientWidth||window.innerWidth, H=mount.clientHeight||window.innerHeight;
+    const scene=new THREE.Scene(); scene.background=new THREE.Color(0x8ec5e8); scene.fog=new THREE.Fog(0x8ec5e8,70,320);
+    const camera=new THREE.PerspectiveCamera(62,W/H,0.1,1000);
+    let renderer;
+    try{ renderer=new THREE.WebGLRenderer({antialias:true}); }catch(e){ setNoWebgl(true); return; }
+    renderer.setSize(W,H); renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); mount.appendChild(renderer.domElement);
+    scene.add(new THREE.HemisphereLight(0xffffff,0x5a7d3a,1.0));
+    const sun=new THREE.DirectionalLight(0xffffff,0.55); sun.position.set(60,90,30); scene.add(sun);
+    // земля-трава
+    const ground=new THREE.Mesh(new THREE.PlaneGeometry(1200,1200),new THREE.MeshLambertMaterial({color:0x4a8f4a})); ground.rotation.x=-Math.PI/2; scene.add(ground);
+    // трасса-круг (тёмная полоса) для ориентира
+    const track=new THREE.Mesh(new THREE.RingGeometry(120,150,48),new THREE.MeshLambertMaterial({color:0x3a3348})); track.rotation.x=-Math.PI/2; track.position.y=0.02; scene.add(track);
+    // деревья
+    const trunkGeo=new THREE.CylinderGeometry(0.4,0.55,3,6), leafGeo=new THREE.ConeGeometry(2.4,5.5,7);
+    const trunkMat=new THREE.MeshLambertMaterial({color:0x6b4423}), leafMat=new THREE.MeshLambertMaterial({color:0x2e7d32});
+    const trees=[];
+    for(let i=0;i<160;i++){ const g=new THREE.Group(); const tr=new THREE.Mesh(trunkGeo,trunkMat); tr.position.y=1.5; const lf=new THREE.Mesh(leafGeo,leafMat); lf.position.y=5.2; g.add(tr,lf); const a=Math.random()*7,r=25+Math.random()*380; g.position.set(Math.cos(a)*r,0,Math.sin(a)*r); const s=0.7+Math.random()*1.3; g.scale.set(s,s,s); scene.add(g); trees.push({x:g.position.x,z:g.position.z,r:2.2*s}); }
+    // здания
+    for(let i=0;i<20;i++){ const h=10+Math.random()*30, bw=8+Math.random()*10; const b=new THREE.Mesh(new THREE.BoxGeometry(bw,h,bw),new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(Math.random(),0.25,0.55)})); const a=Math.random()*7,r=170+Math.random()*220; b.position.set(Math.cos(a)*r,h/2,Math.sin(a)*r); scene.add(b); }
+    // монеты
+    const coinGeo=new THREE.TorusGeometry(1.1,0.4,8,18), coinMat=new THREE.MeshLambertMaterial({color:0xf4d03f,emissive:0x6b5300});
+    const coinObjs=[];
+    for(let i=0;i<45;i++){ const c=new THREE.Mesh(coinGeo,coinMat); c.rotation.x=Math.PI/2; const a=Math.random()*7,r=18+Math.random()*330; c.position.set(Math.cos(a)*r,1.6,Math.sin(a)*r); scene.add(c); coinObjs.push(c); }
+    // машина
+    const carColor=new THREE.Color(car.paint||carDef.base||"#c9a227");
+    const carG=new THREE.Group();
+    const body=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.8,4.6),new THREE.MeshLambertMaterial({color:carColor})); body.position.y=0.75;
+    const cabin=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.75,2.2),new THREE.MeshLambertMaterial({color:0x1a2036})); cabin.position.set(0,1.35,-0.25);
+    carG.add(body,cabin);
+    const wGeo=new THREE.CylinderGeometry(0.55,0.55,0.45,12); wGeo.rotateZ(Math.PI/2); const wMat=new THREE.MeshLambertMaterial({color:0x0a0a0a});
+    [[-1.2,-1.55],[1.2,-1.55],[-1.2,1.55],[1.2,1.55]].forEach(([x,z])=>{const w=new THREE.Mesh(wGeo,wMat); w.position.set(x,0.55,z); carG.add(w);});
+    scene.add(carG);
+    // состояние машины
+    let px=0,pz=155,heading=Math.PI,speed=0;
+    const maxSpeed=0.75+carDef.speed/500+(car.upgrades?car.upgrades.length:0)*0.06;
+    const keys={}; const kd=e=>{keys[(e.key||"").toLowerCase()]=true;}; const ku=e=>{keys[(e.key||"").toLowerCase()]=false;};
+    window.addEventListener("keydown",kd); window.addEventListener("keyup",ku);
+    let raf,last=performance.now(),frame=0;
+    function tickFrame(now){
+      const dt=Math.min(3,(now-last)/16.67); last=now; frame++;
+      const c=ctrl.current;
+      const gas=c.gas||keys["arrowup"]||keys["w"], brake=c.brake||keys["arrowdown"]||keys["s"], left=c.left||keys["arrowleft"]||keys["a"], right=c.right||keys["arrowright"]||keys["d"];
+      if(gas)speed+=0.014*dt; else if(brake)speed-=0.02*dt; else speed*=Math.pow(0.985,dt);
+      speed=Math.max(-maxSpeed*0.45,Math.min(maxSpeed,speed));
+      if(Math.abs(speed)>0.002){ const steer=(left?1:0)-(right?1:0); heading+=steer*0.035*dt*(speed>0?1:-1)*Math.min(1,Math.abs(speed)/0.12); }
+      const nx=px+Math.sin(heading)*speed*dt*2.4, nz=pz+Math.cos(heading)*speed*dt*2.4;
+      // столкновение с деревьями — гасим скорость
+      let blocked=false; for(const t of trees){ const dx=nx-t.x,dz=nz-t.z; if(dx*dx+dz*dz<(t.r+1.4)*(t.r+1.4)){blocked=true;break;} }
+      if(!blocked){ px=nx; pz=nz; } else { speed*=-0.25; }
+      const B=560; px=Math.max(-B,Math.min(B,px)); pz=Math.max(-B,Math.min(B,pz));
+      carG.position.set(px,0,pz); carG.rotation.y=heading;
+      // камера-погоня
+      camera.position.set(px-Math.sin(heading)*11,6.5,pz-Math.cos(heading)*11); camera.lookAt(px+Math.sin(heading)*6,1.4,pz+Math.cos(heading)*6);
+      // монеты
+      for(const c2 of coinObjs){ if(!c2.visible)continue; c2.rotation.z+=0.12*dt; const dx=c2.position.x-px,dz=c2.position.z-pz; if(dx*dx+dz*dz<9){ c2.visible=false; coinsRef.current++; } }
+      renderer.render(scene,camera);
+      if(frame%6===0) setHud({speed:Math.round(Math.abs(speed)*170),coins:coinsRef.current});
+      raf=requestAnimationFrame(tickFrame);
     }
-    raf=requestAnimationFrame(loop);
-    return ()=>cancelAnimationFrame(raf);
-  },[runId]);
+    raf=requestAnimationFrame(tickFrame);
+    const onResize=()=>{ W=mount.clientWidth; H=mount.clientHeight; renderer.setSize(W,H); camera.aspect=W/H; camera.updateProjectionMatrix(); };
+    window.addEventListener("resize",onResize); window.addEventListener("orientationchange",onResize);
+    return ()=>{ cancelAnimationFrame(raf); window.removeEventListener("keydown",kd); window.removeEventListener("keyup",ku); window.removeEventListener("resize",onResize); window.removeEventListener("orientationchange",onResize); try{renderer.dispose(); if(renderer.domElement.parentNode)renderer.domElement.parentNode.removeChild(renderer.domElement);}catch(e){} };
+  },[]);
+  const press=(k)=>(e)=>{e.preventDefault(); ctrl.current[k]=true;};
+  const rel=(k)=>(e)=>{if(e&&e.preventDefault)e.preventDefault(); ctrl.current[k]=false;};
+  if(noWebgl) return (<div style={S.driveWrap}><div style={S.driveOver}><div style={S.driveOverCard}><div style={{fontSize:30}}>🚧</div><div style={{fontSize:16,fontWeight:800,color:gold,margin:"8px 0"}}>3D не запустилось</div><div style={{fontSize:13,color:"#c2c9e6"}}>Нужен интернет (движок Three.js грузится с сети) и поддержка WebGL. Открой один раз с интернетом.</div><button style={{...S.bigBtn,marginTop:14}} onClick={onExit}>Назад</button></div></div></div>);
   return (<div style={S.driveWrap}>
-    <canvas ref={cvRef} onPointerDown={jump} style={{width:"100%",height:"100%",display:"block",touchAction:"none"}}/>
-    <div style={S.driveHud}><span>🏁 {hud.dist} м</span><span>🪙 {hud.coins}</span><span style={{color:gold}}>рекорд {best||0} м</span></div>
-    <div style={S.driveHint}>📱 переверни телефон · тапни по экрану — прыжок</div>
-    <button style={S.driveExit} onClick={onExit}>✕</button>
-    {over&&(<div style={S.driveOver}><div style={S.driveOverCard}>
-      <div style={{fontSize:30}}>🏁</div><div style={{fontSize:20,fontWeight:800,color:gold,margin:"6px 0"}}>Заезд окончен</div>
-      <div style={{fontSize:13,color:"#c6d0e6",lineHeight:1.7}}>Дистанция: <b>{over.dist} м</b><br/>Монеты: <b>{over.coins} 🪙</b><br/>Награда: <b style={{color:"#5fbf8f"}}>+{money(over.reward)}</b></div>
-      <button style={{...S.bigBtn,marginTop:14}} onClick={()=>{setOver(null);setHud({dist:0,coins:0});setRunId(v=>v+1);}}>🔁 Ещё раз</button>
-      <button style={{...S.bigBtn,marginTop:10,background:"#24304d",color:gold}} onClick={onExit}>Выйти из гаража</button>
-    </div></div>)}
+    <div ref={mountRef} style={{position:"absolute",inset:0,touchAction:"none"}}/>
+    <div style={S.driveHud}><span>🏎️ {hud.speed} км/ч</span><span style={{color:gold}}>🪙 {hud.coins} · +{money(hud.coins*1500)}</span></div>
+    <div style={S.driveHint}>📱 переверни телефон · руль ◀▶ · газ / тормоз</div>
+    <button style={S.driveExit} onClick={doExit}>✕</button>
+    <div style={S.drivePadL}>
+      <button style={S.driveDir} onPointerDown={press("left")} onPointerUp={rel("left")} onPointerLeave={rel("left")} onPointerCancel={rel("left")}>◀</button>
+      <button style={S.driveDir} onPointerDown={press("right")} onPointerUp={rel("right")} onPointerLeave={rel("right")} onPointerCancel={rel("right")}>▶</button>
+    </div>
+    <div style={S.drivePadR}>
+      <button style={{...S.driveDir,background:"rgba(224,87,78,.5)"}} onPointerDown={press("brake")} onPointerUp={rel("brake")} onPointerLeave={rel("brake")} onPointerCancel={rel("brake")}>⌄</button>
+      <button style={S.driveGas} onPointerDown={press("gas")} onPointerUp={rel("gas")} onPointerLeave={rel("gas")} onPointerCancel={rel("gas")}>ГАЗ</button>
+    </div>
   </div>);
 }
 
@@ -1037,6 +1072,10 @@ const S={
   driveExit:{position:"absolute",top:"calc(8px + env(safe-area-inset-top))",right:12,width:38,height:38,borderRadius:19,background:"rgba(0,0,0,.4)",color:"#fff",border:"1px solid rgba(255,255,255,.25)",fontSize:16,cursor:"pointer",zIndex:2},
   driveOver:{position:"absolute",inset:0,background:"rgba(8,10,25,.82)",display:"flex",alignItems:"center",justifyContent:"center",padding:20},
   driveOverCard:{width:"100%",maxWidth:320,background:"#161a33",border:"1px solid #2a2f52",borderRadius:20,padding:24,textAlign:"center"},
+  drivePadL:{position:"absolute",left:"calc(14px + env(safe-area-inset-left))",bottom:"calc(24px + env(safe-area-inset-bottom))",display:"flex",gap:12,zIndex:3},
+  drivePadR:{position:"absolute",right:"calc(14px + env(safe-area-inset-right))",bottom:"calc(24px + env(safe-area-inset-bottom))",display:"flex",gap:12,alignItems:"flex-end",zIndex:3},
+  driveDir:{width:66,height:66,borderRadius:33,background:"rgba(20,24,52,.55)",color:"#fff",border:"1.5px solid rgba(255,255,255,.35)",fontSize:24,fontWeight:800,cursor:"pointer",touchAction:"none",userSelect:"none",backdropFilter:"blur(4px)"},
+  driveGas:{width:88,height:88,borderRadius:44,background:"rgba(124,58,237,.65)",color:"#fff",border:"2px solid rgba(255,255,255,.4)",fontSize:17,fontWeight:900,cursor:"pointer",touchAction:"none",userSelect:"none",backdropFilter:"blur(4px)"},
 };
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
